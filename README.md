@@ -17,6 +17,7 @@
 - 🎨 **豐富可視化** - 多樣化的圖表和交互式儀表板
 - 🔧 **模塊化設計** - 易於擴展和定制的架構
 - 📚 **實戰案例** - 5個真實數據集的完整分析範例
+- 🏆 **30個Kaggle解決方案** - 涵蓋機器學習各個領域的完整實現
 - 🚀 **最佳實踐** - 採用2024-2025年行業最新標準
 
 ### 🆕 2024-2025年最新特性
@@ -40,6 +41,17 @@ Data-Analysis-with-Chatbots/
 │   ├── 03_mall_customer_analysis.md # 購物中心會員分析
 │   ├── 04_personality_analysis.md  # 客戶人格分析
 │   └── 05_marketing_segmentation.md # 營銷分群策略
+│
+├── kaggle_solutions/               # 🏆 30個Kaggle實戰解決方案
+│   ├── 01_structured_data/        # 結構化數據 (1-8)
+│   ├── 02_time_series/            # 時間序列 (9-13)
+│   ├── 03_nlp/                    # 自然語言處理 (14-18)
+│   ├── 04_recommendation/         # 推薦系統 (19-21)
+│   ├── 05_computer_vision/        # 計算機視覺 (22-24)
+│   ├── 06_clustering/             # 聚類分析 (25-27)
+│   ├── 07_special_domains/        # 特殊領域 (28-30)
+│   ├── README.md                  # Kaggle解決方案總覽
+│   └── run_all.py                 # 批量運行腳本
 │
 ├── notebooks/                      # 📓 Jupyter Notebooks
 │   └── (待添加互動式演示)
@@ -208,6 +220,45 @@ targeted = campaign_mgr.create_campaign(
 )
 roi = campaign_mgr.calculate_campaign_roi('VIP促銷', 50, 0.15, 500)
 ```
+
+## 🏆 30個Kaggle實戰解決方案
+
+專案包含 **30個完整的Kaggle比賽解決方案**，涵蓋機器學習的各個領域：
+
+### 📊 結構化數據與分類 (1-8)
+- Titanic存活預測、房價預測、信用卡詐欺偵測、客戶流失預測等
+
+### ⏱️ 時間序列分析 (9-13)
+- 股票價格預測、銷售預測、COVID-19分析、能源消耗預測等
+
+### 💬 自然語言處理 (14-18)
+- 情感分析、假新聞偵測、垃圾郵件分類、災難推文識別等
+
+### 🎬 推薦系統 (19-21)
+- 電影推薦、產品推薦、書籍推薦
+
+### 🖼️ 計算機視覺 (22-24)
+- 手寫數字識別、服裝分類、貓狗識別
+
+### 🔍 聚類與無監督學習 (25-27)
+- 客戶分群、異常檢測、購物籃分析
+
+### 🏥 特殊領域應用 (28-30)
+- 醫療診斷、保險費用預測、員工離職預測
+
+### 快速開始
+
+```bash
+# 查看所有解決方案
+cd kaggle_solutions
+python run_all.py
+
+# 運行單個解決方案
+cd kaggle_solutions/01_structured_data/01_titanic_survival
+python solution.py
+```
+
+**詳細信息**: 查看 [kaggle_solutions/README.md](kaggle_solutions/README.md)
 
 ## 📖 詳細文檔
 
