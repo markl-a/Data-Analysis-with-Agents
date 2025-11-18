@@ -262,7 +262,37 @@ python solution.py
 
 ## 📖 詳細文檔
 
-請查看[docs/](docs/)目錄獲取完整文檔:
+### 📚 完整學習指南 (新增!)
+
+**從零基礎到專家的完整路徑**:
+
+- 📖 **[TUTORIAL.md](TUTORIAL.md)** - 完整學習教程 (入門到精通)
+  - 4個階段學習路徑 (0-12個月)
+  - 每週/每月結構化課程
+  - 實戰代碼示例與練習
+  - 進度追蹤檢查表
+
+- 🤖 **[AI_ASSISTANCE_GUIDE.md](AI_ASSISTANCE_GUIDE.md)** - AI輔助使用指南
+  - ChatGPT、Claude、Gemini 比較與使用
+  - AI輔助數據清洗 (3種方法)
+  - AI輔助編碼最佳實踐
+  - 實戰案例與安全建議
+
+- 📊 **[CASE_STUDIES.md](CASE_STUDIES.md)** - 實際案例研究
+  - 4個熱門Kaggle競賽詳解
+  - 3個企業應用案例
+  - 完整端到端專案實戰
+  - 業務成果與指標
+
+- 🏆 **[KAGGLE_COMPETITIONS_SUGGESTIONS.md](KAGGLE_COMPETITIONS_SUGGESTIONS.md)** - Kaggle競賽推薦
+  - 12個精選競賽 (入門到專家)
+  - 詳細競賽分析與策略
+  - 學習路徑建議
+  - AI輔助競賽技巧
+
+### 📂 技術文檔
+
+請查看[docs/](docs/)目錄獲取技術文檔:
 
 - [01_data_cleaning.md](docs/01_data_cleaning.md) - 數據清洗完整指南
 - [02_customer_segmentation.md](docs/02_customer_segmentation.md) - RFM與電商分析
@@ -318,4 +348,30 @@ analysis:
 
 ⭐ 如果這個專案對你有幫助,請給個星星! ⭐
 
-**最後更新:** 2024年11月14日
+---
+
+## 🚀 快速導航
+
+### 新手入門
+1. 閱讀 [QUICKSTART.md](QUICKSTART.md) - 5分鐘快速體驗
+2. 學習 [TUTORIAL.md](TUTORIAL.md) - 完整學習路徑
+3. 運行第一個範例: `python examples/complete_analysis_workflow.py`
+
+### AI輔助學習
+1. 閱讀 [AI_ASSISTANCE_GUIDE.md](AI_ASSISTANCE_GUIDE.md)
+2. 使用AI優化你的代碼
+3. 參考 [CASE_STUDIES.md](CASE_STUDIES.md) 中的AI輔助案例
+
+### Kaggle競賽
+1. 查看 [KAGGLE_COMPETITIONS_SUGGESTIONS.md](KAGGLE_COMPETITIONS_SUGGESTIONS.md)
+2. 從Titanic開始: `cd kaggle_solutions/01_structured_data/01_titanic_survival`
+3. 參加你的第一個競賽!
+
+### 企業應用
+1. 研究 [CASE_STUDIES.md](CASE_STUDIES.md) 中的企業案例
+2. 運行CLV預測: `docs/04_personality_analysis.md`
+3. 部署Streamlit儀表板: `streamlit run app.py`
+
+---
+
+**最後更新:** 2025年1月18日
