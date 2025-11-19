@@ -69,7 +69,7 @@ def generate_complex_series(n_samples=1000):
     return df
 
 
-class SimpleL STM:
+class SimpleLSTM:
     """Simplified LSTM implementation for educational purposes"""
 
     def __init__(self, input_size, hidden_size, output_size):

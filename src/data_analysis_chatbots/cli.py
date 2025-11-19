@@ -9,7 +9,13 @@ from loguru import logger
 from .data_downloader import DataDownloader
 from .data_loader import DataLoader
 from .preprocessing import DataValidator
-from .clustering import KMeansClusterer, RFMAnalyzer
+from .clustering import (
+    KMeansClusterer,
+    DBSCANClusterer,
+    GMMClusterer,
+    HierarchicalClusterer,
+    RFMAnalyzer
+)
 from .marketing import CLVPredictor
 from .utils import setup_logging
 
@@ -44,7 +50,7 @@ def analyze_data(args):
         elif args.dataset == 'ecommerce':
             df = loader.load_ecommerce()
         elif args.dataset == 'personality':
-            df.load_personality()
+            df = loader.load_personality()
         else:
             logger.error(f"Unknown dataset: {args.dataset}")
             sys.exit(1)
@@ -58,17 +64,68 @@ def analyze_data(args):
 
         elif args.analysis == 'cluster':
             if args.dataset == 'mall_customers':
-                clusterer = KMeansClusterer(n_clusters=args.n_clusters)
                 features = ['Age', 'Annual Income (k$)', 'Spending Score (1-100)']
-                labels = clusterer.fit_predict(df, features)
+
+                # 根據算法類型創建聚類器
+                algorithm = getattr(args, 'algorithm', 'kmeans')
+
+                if algorithm == 'kmeans':
+                    clusterer = KMeansClusterer(n_clusters=args.n_clusters)
+                    labels = clusterer.fit_predict(df, features)
+                    logger.success(f"K-Means clustering completed with {args.n_clusters} clusters")
+
+                elif algorithm == 'dbscan':
+                    eps = getattr(args, 'eps', 0.5)
+                    min_samples = getattr(args, 'min_samples', 5)
+                    clusterer = DBSCANClusterer(eps=eps, min_samples=min_samples)
+                    labels = clusterer.fit_predict(df, features)
+                    logger.success(
+                        f"DBSCAN clustering completed: {clusterer.n_clusters_} clusters, "
+                        f"{clusterer.n_noise_} noise points"
+                    )
+
+                elif algorithm == 'gmm':
+                    clusterer = GMMClusterer(n_components=args.n_clusters)
+                    labels = clusterer.fit_predict(df, features)
+                    probabilities = clusterer.predict_proba(df, features)
+                    df['Max_Probability'] = probabilities.max(axis=1)
+                    logger.success(f"GMM clustering completed with {args.n_clusters} components")
+
+                elif algorithm == 'hierarchical':
+                    linkage_method = getattr(args, 'linkage', 'ward')
+                    clusterer = HierarchicalClusterer(
+                        n_clusters=args.n_clusters,
+                        linkage=linkage_method
+                    )
+                    labels = clusterer.fit_predict(df, features)
+                    logger.success(
+                        f"Hierarchical clustering completed with {args.n_clusters} clusters "
+                        f"(linkage={linkage_method})"
+                    )
+                else:
+                    logger.error(f"Unknown algorithm: {algorithm}")
+                    sys.exit(1)
 
                 df['Cluster'] = labels
-                logger.success(f"Clustering completed with {args.n_clusters} clusters")
+
+                # 獲取並顯示聚類摘要
+                summary = clusterer.get_cluster_summary(df, features)
+                logger.info("\nCluster Summary:")
+                print(summary.to_string())
+
+                # 評估聚類質量
+                metrics = clusterer.evaluate_clustering(df, features)
+                logger.info(f"\nClustering Metrics: {metrics}")
 
                 # 保存結果
-                output_file = args.output or 'data/outputs/cluster_results.csv'
+                output_file = args.output or f'data/outputs/{algorithm}_cluster_results.csv'
                 df.to_csv(output_file, index=False)
                 logger.success(f"Results saved to {output_file}")
+
+                # 保存摘要
+                summary_file = output_file.replace('.csv', '_summary.csv')
+                summary.to_csv(summary_file, index=False)
+                logger.success(f"Summary saved to {summary_file}")
 
         elif args.analysis == 'rfm':
             if args.dataset != 'ecommerce':
@@ -123,8 +180,17 @@ Examples:
   # Validate data
   dac-analyze --dataset mall_customers --analysis validate
 
-  # Run clustering
+  # Run K-Means clustering (default)
   dac-analyze --dataset mall_customers --analysis cluster --n-clusters 5
+
+  # Run DBSCAN clustering
+  dac-analyze --dataset mall_customers --analysis cluster --algorithm dbscan --eps 0.5 --min-samples 10
+
+  # Run GMM clustering
+  dac-analyze --dataset mall_customers --analysis cluster --algorithm gmm --n-clusters 3
+
+  # Run Hierarchical clustering
+  dac-analyze --dataset mall_customers --analysis cluster --algorithm hierarchical --n-clusters 4 --linkage ward
 
   # Run RFM analysis
   dac-analyze --dataset ecommerce --analysis rfm
@@ -149,8 +215,25 @@ Examples:
     analyze_parser.add_argument('--analysis', type=str, required=True,
                                choices=['validate', 'cluster', 'rfm'],
                                help='Type of analysis')
+
+    # Clustering algorithm options
+    analyze_parser.add_argument('--algorithm', type=str, default='kmeans',
+                               choices=['kmeans', 'dbscan', 'gmm', 'hierarchical'],
+                               help='Clustering algorithm (default: kmeans)')
     analyze_parser.add_argument('--n-clusters', type=int, default=5,
-                               help='Number of clusters (for clustering)')
+                               help='Number of clusters (for kmeans/gmm/hierarchical)')
+
+    # DBSCAN specific parameters
+    analyze_parser.add_argument('--eps', type=float, default=0.5,
+                               help='DBSCAN: Maximum distance between samples (default: 0.5)')
+    analyze_parser.add_argument('--min-samples', type=int, default=5,
+                               help='DBSCAN: Minimum samples in neighborhood (default: 5)')
+
+    # Hierarchical specific parameters
+    analyze_parser.add_argument('--linkage', type=str, default='ward',
+                               choices=['ward', 'complete', 'average', 'single'],
+                               help='Hierarchical: Linkage method (default: ward)')
+
     analyze_parser.add_argument('--output', type=str, help='Output file path')
     analyze_parser.set_defaults(func=analyze_data)
 
