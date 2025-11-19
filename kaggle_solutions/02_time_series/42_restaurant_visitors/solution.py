@@ -14,22 +14,22 @@ from sklearn.preprocessing import StandardScaler
 
 
 class RestaurantVisitorsSolution:
-    """<br/>餐廳客流預測解決方案類"""
-    
+    """餐廳客流預測解決方案類"""
+
     def __init__(self):
         self.model = None
         self.scaler = StandardScaler()
-    
+
     def load_data(self, data_path: str) -> pd.DataFrame:
         """加載數據"""
         print(f"正在加載數據: {data_path}")
         return pd.DataFrame()
-    
+
     def train(self, X_train, y_train):
         """訓練模型"""
         print("模型訓練中...")
         pass
-    
+
     def predict(self, X):
         """進行預測"""
         return None
@@ -40,10 +40,9 @@ def main():
     print("=" * 80)
     print(f"{'餐廳客流預測' :^80}")
     print("=" * 80)
-    
+
     solution = RestaurantVisitorsSolution()
-    print("
-解決方案執行完成！")
+    print("\n解決方案執行完成！")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 class SupplyChainRiskSolution:
-    """<br/>供應鏈風險解決方案類"""
+    """供應鏈風險解決方案類"""
     
     def __init__(self):
         self.model = None
@@ -42,8 +42,7 @@ def main():
     print("=" * 80)
     
     solution = SupplyChainRiskSolution()
-    print("
-解決方案執行完成！")
+    print("\n解決方案執行完成！")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 
 class BikeSharingDemandSolution:
-    """<br/>共享單車需求解決方案類"""
+    """共享單車需求解決方案類"""
     
     def __init__(self):
         self.model = None
@@ -42,8 +42,7 @@ def main():
     print("=" * 80)
     
     solution = BikeSharingDemandSolution()
-    print("
-解決方案執行完成！")
+    print("\n解決方案執行完成！")
 
 
 if __name__ == "__main__":

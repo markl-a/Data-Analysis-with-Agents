@@ -530,7 +530,9 @@ def model_comparison_framework(train_data, test_data, models_dict):
         print(f"\nBest Model: {best_model}")
     
     return comparison_results
-\n\ndef main():
+
+
+def main():
     """Main execution function"""
     print("="*70)
     print(f"{title.upper()}")
