@@ -41,6 +41,9 @@ from .exceptions import (
 # Import initialization utilities
 from .init import initialize_project, validate_project_structure, get_project_root
 
+# Import model utilities
+from . import model_utils
+
 __all__ = [
     # Core utilities
     "ConfigLoader",
@@ -66,4 +69,6 @@ __all__ = [
     "initialize_project",
     "validate_project_structure",
     "get_project_root",
+    # Model utilities
+    "model_utils",
 ]
