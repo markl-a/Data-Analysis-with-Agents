@@ -44,7 +44,7 @@ def analyze_data(args):
         elif args.dataset == 'ecommerce':
             df = loader.load_ecommerce()
         elif args.dataset == 'personality':
-            df.load_personality()
+            df = loader.load_personality()
         else:
             logger.error(f"Unknown dataset: {args.dataset}")
             sys.exit(1)

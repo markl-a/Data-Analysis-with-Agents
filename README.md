@@ -19,6 +19,9 @@
 - 📚 **實戰案例** - 5個真實數據集的完整分析範例
 - 🏆 **30個Kaggle解決方案** - 涵蓋機器學習各個領域的完整實現
 - 🚀 **最佳實踐** - 採用2024-2025年行業最新標準
+- 🎯 **多種聚類算法** - K-Means, DBSCAN, GMM, Hierarchical完整實現
+- 🛡️ **強大錯誤處理** - 自定義異常系統提供清晰的錯誤信息
+- ⚡ **一鍵初始化** - 自動創建專案目錄結構
 
 ### 🆕 2024-2025年最新特性
 
@@ -27,8 +30,10 @@
 - **AI驅動分群** - 使用AI工具可減少75%分析時間,提升95%準確度
 - **動態實時分析** - 機器學習模型自動更新客戶分群
 - **隱私優先** - 95%客戶更信任重視數據隱私的品牌
-- **多算法支持** - 除K-means外,支持DBSCAN、GMM、Fuzzy C-Means等先進算法
+- **多算法支持** - K-Means、DBSCAN、GMM、Hierarchical等4種完整實現的聚類算法
 - **進階CLV預測** - 結合RFM與機器學習的混合方法
+- **自動化初始化** - 一鍵創建完整專案結構
+- **專業異常處理** - 15+個自定義異常類,提供精確的錯誤信息和恢復建議
 
 ## 📁 專案結構
 
@@ -118,7 +123,17 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-5. **下載數據集**(可選)
+5. **初始化專案結構**(新增!)
+
+```bash
+# 創建必要的目錄結構(data/, models/, logs/等)
+python -m data_analysis_chatbots.init --with-examples
+
+# 或僅驗證目錄結構是否完整
+python -m data_analysis_chatbots.init --validate
+```
+
+6. **下載數據集**(可選)
 
 ```bash
 # 下載所有數據集
@@ -133,8 +148,12 @@ python -m data_analysis_chatbots.data_downloader --sample
 
 ### 基本使用
 
+#### 快速入門 - K-Means聚類
+
 ```python
-from data_analysis_chatbots import DataLoader, KMeansClusterer, Plotter
+from data_analysis_chatbots import DataLoader
+from data_analysis_chatbots.clustering import KMeansClusterer
+from data_analysis_chatbots.visualization import Plotter
 
 # 加載數據
 loader = DataLoader()
@@ -147,6 +166,31 @@ labels = clusterer.fit_predict(df, ['Age', 'Annual Income (k$)', 'Spending Score
 # 可視化結果
 plotter = Plotter()
 plotter.plot_clusters(df, 'Annual Income (k$)', 'Spending Score (1-100)', 'Cluster')
+```
+
+#### 新增! 使用高級聚類算法
+
+```python
+from data_analysis_chatbots.clustering import (
+    DBSCANClusterer,      # 密度聚類
+    GMMClusterer,         # 高斯混合模型
+    HierarchicalClusterer # 層次聚類
+)
+
+# DBSCAN - 適合發現任意形狀的聚類
+dbscan = DBSCANClusterer(eps=0.5, min_samples=10)
+labels = dbscan.fit_predict(df, features)
+print(f"發現 {dbscan.n_clusters_} 個聚類和 {dbscan.n_noise_} 個異常點")
+
+# GMM - 提供概率性聚類結果
+gmm = GMMClusterer(n_components=3)
+labels = gmm.fit_predict(df, features)
+probabilities = gmm.predict_proba(df, features)  # 獲取每個點屬於各聚類的概率
+
+# Hierarchical - 可視化層次結構
+hierarchical = HierarchicalClusterer(n_clusters=4, linkage='ward')
+labels = hierarchical.fit_predict(df, features)
+hierarchical.plot_dendrogram(save_path='outputs/plots/dendrogram.png')
 ```
 
 ## 📊 數據集
@@ -289,6 +333,21 @@ python solution.py
   - 詳細競賽分析與策略
   - 學習路徑建議
   - AI輔助競賽技巧
+
+- ❓ **[FAQ.md](FAQ.md)** - 常見問題解答 (新增!)
+  - 20個最常見問題詳解
+  - 安裝、使用、錯誤處理
+  - 聚類算法選擇指南
+  - 性能優化技巧
+  - AI輔助最佳實踐
+
+- 🏗️ **[ARCHITECTURE.md](ARCHITECTURE.md)** - 系統架構設計 (新增!)
+  - 分層架構詳解
+  - 模塊設計原則
+  - 設計模式應用
+  - 數據流與狀態管理
+  - 性能優化策略
+  - 安全性考慮
 
 ### 📂 技術文檔
 
