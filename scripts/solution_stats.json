@@ -1,26 +1,26 @@
 {
-  "total": 802,
+  "total": 1002,
   "by_category": {
-    "01_structured_data": 39,
-    "02_time_series": 55,
-    "03_nlp": 39,
-    "04_recommendation": 44,
-    "05_computer_vision": 38,
-    "06_clustering": 48,
-    "07_special_domains": 53,
-    "08_deep_learning": 53,
-    "09_audio_signal": 48,
-    "10_anomaly_detection": 47,
-    "11_graph_networks": 47,
-    "12_geospatial": 47,
-    "13_feature_engineering": 52,
-    "14_ensemble_methods": 52,
-    "15_bayesian_methods": 47,
-    "16_optimization": 47,
-    "17_multimodal": 46
+    "01_structured_data": 51,
+    "02_time_series": 67,
+    "03_nlp": 51,
+    "04_recommendation": 56,
+    "05_computer_vision": 50,
+    "06_clustering": 60,
+    "07_special_domains": 65,
+    "08_deep_learning": 65,
+    "09_audio_signal": 60,
+    "10_anomaly_detection": 59,
+    "11_graph_networks": 59,
+    "12_geospatial": 59,
+    "13_feature_engineering": 64,
+    "14_ensemble_methods": 64,
+    "15_bayesian_methods": 59,
+    "16_optimization": 59,
+    "17_multimodal": 54
   },
   "files": {
-    "solution_files": 802,
-    "readme_files": 802
+    "solution_files": 1002,
+    "readme_files": 1002
   }
 }
