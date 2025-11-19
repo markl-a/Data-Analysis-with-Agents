@@ -11,6 +11,7 @@ Modules:
     - marketing: Marketing strategy and campaign management
     - exceptions: Custom exception classes
     - init: Project initialization utilities
+    - kaggle_downloader: Kaggle dataset download utilities
 """
 
 __version__ = "1.0.0"
@@ -19,6 +20,9 @@ __author__ = "賴祺清"
 from .config_loader import ConfigLoader
 from .data_loader import DataLoader
 from .utils import setup_logging, ensure_dir
+
+# Import Kaggle downloader
+from .kaggle_downloader import KaggleDatasetDownloader, quick_download, setup_kaggle_credentials
 
 # Import exceptions for convenient access
 from .exceptions import (
@@ -50,6 +54,10 @@ __all__ = [
     "DataLoader",
     "setup_logging",
     "ensure_dir",
+    # Kaggle downloader
+    "KaggleDatasetDownloader",
+    "quick_download",
+    "setup_kaggle_credentials",
     # Exceptions
     "DataAnalysisError",
     "DataLoadError",
