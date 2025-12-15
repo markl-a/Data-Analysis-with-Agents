@@ -13,6 +13,9 @@ from .ml_utils import (
     evaluate_classifier,
     evaluate_regressor,
     cross_validate_model,
+    EarlyStopping,
+    model_comparison,
+    generate_hyperparameter_grid,
 )
 from .visualization import (
     plot_confusion_matrix,
@@ -35,6 +38,9 @@ __all__ = [
     'evaluate_classifier',
     'evaluate_regressor',
     'cross_validate_model',
+    'EarlyStopping',
+    'model_comparison',
+    'generate_hyperparameter_grid',
     # Visualization
     'plot_confusion_matrix',
     'plot_roc_curve',

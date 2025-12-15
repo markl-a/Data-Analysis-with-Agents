@@ -7,6 +7,11 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+# 優化：添加並發控制，自動取消同一 PR/branch 的舊運行
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -25,6 +30,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          setup.py
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('requirements.txt', 'setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-py${{ matrix.python-version }}-
+          ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
@@ -32,9 +49,19 @@ jobs:
         pip install -r requirements.txt
         pip install -e ".[dev]"
 
-    - name: Run tests with coverage
+    - name: Run tests with coverage (parallel)
       run: |
-        pytest --cov=src/data_analysis_chatbots --cov-report=xml --cov-report=term-missing -v
+        pytest --cov=src/data_analysis_chatbots --cov-report=xml --cov-report=term-missing -v -n auto
+
+    - name: Upload coverage reports as artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          coverage.xml
+          .coverage
+        retention-days: 7
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
@@ -55,6 +82,18 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          setup.py
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-quality-${{ hashFiles('requirements.txt', 'setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-quality-
+          ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
@@ -81,6 +120,16 @@ jobs:
     - name: Check dependencies for security vulnerabilities
       run: safety check --json || echo "::warning::Some dependencies have known vulnerabilities"
 
+    - name: Upload quality check results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-quality-results
+        path: |
+          .mypy_cache/
+        retention-days: 7
+        if-no-files-found: ignore
+
   build:
     name: Build Package
     runs-on: ubuntu-latest
@@ -93,6 +142,16 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+        cache: 'pip'
+
+    - name: Cache build dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-build-${{ hashFiles('setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-build-
+          ${{ runner.os }}-pip-
 
     - name: Install build tools
       run: |
@@ -105,8 +164,10 @@ jobs:
     - name: Check package with twine
       run: twine check dist/*
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
         name: dist-packages
         path: dist/
+        retention-days: 30
+        compression-level: 6

@@ -226,7 +226,7 @@ def save_model(
         raise ModelSaveError(
             f"保存模型失敗: {str(e)}",
             file_path=str(model_path) if model_path else None
-        )
+        ) from e
 
 
 def load_model(
@@ -288,7 +288,7 @@ def load_model(
         raise ModelLoadError(
             f"加載模型失敗: {str(e)}",
             file_path=str(model_path) if model_path else None
-        )
+        ) from e
 
 
 def export_model_metadata(
@@ -353,11 +353,11 @@ def compare_models(model_names: List[str]) -> None:
         return
 
     df = pd.DataFrame(models_info)
-    print("\n" + "="*80)
-    print("模型比較")
-    print("="*80)
-    print(df.to_string(index=False))
-    print("="*80 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info("模型比較")
+    logger.info("="*80)
+    logger.info(df.to_string(index=False))
+    logger.info("="*80 + "\n")
 
 
 def cleanup_old_models(days: int = 30, dry_run: bool = True) -> List[str]:
@@ -409,13 +409,13 @@ load = load_model
 
 if __name__ == '__main__':
     # 示例用法
-    print("Model Utils - 使用示例")
-    print("="*50)
+    logger.info("Model Utils - 使用示例")
+    logger.info("="*50)
 
     # 列出所有模型
     registry = ModelRegistry()
     models = registry.list_models()
-    print(f"\n找到 {len(models)} 個已註冊的模型")
+    logger.info(f"\n找到 {len(models)} 個已註冊的模型")
 
     for model in models:
-        print(f"  - {model['model_id']} ({model.get('algorithm', 'Unknown')})")
+        logger.info(f"  - {model['model_id']} ({model.get('algorithm', 'Unknown')})")

@@ -1,10 +1,11 @@
 """Utility functions for the Data Analysis with Chatbots project."""
 
 import os
+import sys
 from pathlib import Path
 from typing import Union, Optional
+
 from loguru import logger
-import sys
 
 
 def setup_logging(
@@ -12,7 +13,7 @@ def setup_logging(
     level: str = "INFO",
     rotation: str = "10 MB",
     retention: str = "30 days"
-):
+) -> None:
     """
     Setup logging configuration.
 

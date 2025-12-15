@@ -100,7 +100,7 @@ class MusicGenerationSolution:
         metrics = {}
         try:
             metrics['accuracy'] = accuracy_score(y_test, predictions)
-        except:
+        except ValueError:
             metrics['mse'] = mean_squared_error(y_test, predictions)
 
         return metrics

@@ -1,8 +1,9 @@
 """Customer Lifetime Value (CLV) prediction."""
 
-import pandas as pd
-import numpy as np
 from typing import Optional, Dict, Any
+
+import numpy as np
+import pandas as pd
 from loguru import logger
 
 
