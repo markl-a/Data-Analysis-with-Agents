@@ -35,7 +35,7 @@ class Plotter:
         # Set style
         try:
             plt.style.use(style)
-        except:
+        except OSError:
             logger.warning(f"Style '{style}' not found. Using default.")
             plt.style.use('default')
 
