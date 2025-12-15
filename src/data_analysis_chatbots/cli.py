@@ -20,7 +20,7 @@ from .marketing import CLVPredictor
 from .utils import setup_logging
 
 
-def download_data(args):
+def download_data(args) -> None:
     """下載數據集"""
     setup_logging(level="INFO")
 
@@ -33,11 +33,11 @@ def download_data(args):
     elif args.dataset:
         downloader.download_dataset(args.dataset, force=args.force)
     else:
-        print("請指定 --all, --dataset 或 --sample")
+        logger.error("請指定 --all, --dataset 或 --sample")
         sys.exit(1)
 
 
-def analyze_data(args):
+def analyze_data(args) -> None:
     """執行數據分析"""
     setup_logging(level="INFO")
 
@@ -111,7 +111,7 @@ def analyze_data(args):
                 # 獲取並顯示聚類摘要
                 summary = clusterer.get_cluster_summary(df, features)
                 logger.info("\nCluster Summary:")
-                print(summary.to_string())
+                logger.info(summary.to_string())
 
                 # 評估聚類質量
                 metrics = clusterer.evaluate_clustering(df, features)
@@ -143,8 +143,8 @@ def analyze_data(args):
             summary = rfm_analyzer.get_segment_summary()
 
             logger.success("RFM analysis completed")
-            print("\nSegment Summary:")
-            print(summary)
+            logger.info("\nSegment Summary:")
+            logger.info(summary)
 
             # 保存結果
             output_file = args.output or 'data/outputs/rfm_segments.csv'
@@ -161,7 +161,7 @@ def analyze_data(args):
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """主CLI入口"""
     parser = argparse.ArgumentParser(
         description="Data Analysis with Chatbots CLI",

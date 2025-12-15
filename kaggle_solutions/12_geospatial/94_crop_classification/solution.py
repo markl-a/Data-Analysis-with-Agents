@@ -194,7 +194,7 @@ class CropClassification:
         
         df = self.load_data(data_path)
         X, y = self.preprocess(df, target_col)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=self.random_state)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=self.random_state, stratify=y)
         
         print(f"\n數據集劃分: 訓練{X_train.shape} 測試{X_test.shape}")
         

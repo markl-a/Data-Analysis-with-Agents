@@ -52,6 +52,7 @@ setup(
         "dev": [
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
+            "pytest-xdist>=3.3.0",
             "black>=23.7.0",
             "flake8>=6.1.0",
             "isort>=5.12.0",

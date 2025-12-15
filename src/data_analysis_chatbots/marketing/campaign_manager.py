@@ -1,8 +1,9 @@
 """Marketing campaign management and customer targeting."""
 
-import pandas as pd
+from typing import Optional, List, Dict, Any
+
 import numpy as np
-from typing import Optional, List, Dict, Any, Callable
+import pandas as pd
 from loguru import logger
 
 

@@ -205,7 +205,7 @@ def validate_project_structure(root: Optional[Path] = None) -> bool:
         return True
 
 
-def main():
+def main() -> None:
     """命令行入口"""
     import argparse
 

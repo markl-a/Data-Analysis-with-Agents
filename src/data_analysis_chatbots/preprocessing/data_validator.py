@@ -1,8 +1,9 @@
 """Data validation utilities."""
 
-import pandas as pd
-import numpy as np
 from typing import Dict, List, Optional, Any
+
+import numpy as np
+import pandas as pd
 from loguru import logger
 
 
@@ -259,35 +260,35 @@ class DataValidator:
         if not self.validation_results:
             self.generate_report()
 
-        print("\n" + "="*60)
-        print("DATA QUALITY REPORT")
-        print("="*60)
+        logger.info("\n" + "="*60)
+        logger.info("DATA QUALITY REPORT")
+        logger.info("="*60)
 
         summary = self.validation_results.get('summary', {})
-        print(f"\nDataset Summary:")
-        print(f"  Rows: {summary.get('total_rows', 0):,}")
-        print(f"  Columns: {summary.get('total_columns', 0)}")
-        print(f"  Memory Usage: {summary.get('memory_usage_mb', 0):.2f} MB")
+        logger.info(f"\nDataset Summary:")
+        logger.info(f"  Rows: {summary.get('total_rows', 0):,}")
+        logger.info(f"  Columns: {summary.get('total_columns', 0)}")
+        logger.info(f"  Memory Usage: {summary.get('memory_usage_mb', 0):.2f} MB")
 
         missing = self.validation_results.get('missing_values', {})
-        print(f"\nMissing Values:")
-        print(f"  Total Missing Cells: {missing.get('total_missing_cells', 0):,}")
+        logger.info(f"\nMissing Values:")
+        logger.info(f"  Total Missing Cells: {missing.get('total_missing_cells', 0):,}")
         if missing.get('columns_with_missing'):
-            print(f"  Columns with Missing Values: {len(missing['columns_with_missing'])}")
+            logger.info(f"  Columns with Missing Values: {len(missing['columns_with_missing'])}")
             for col in missing['columns_with_missing'][:5]:
                 info = missing['missing_by_column'][col]
-                print(f"    - {col}: {info['count']} ({info['percentage']}%)")
+                logger.info(f"    - {col}: {info['count']} ({info['percentage']}%)")
 
         duplicates = self.validation_results.get('duplicates', {})
-        print(f"\nDuplicates:")
-        print(f"  Duplicate Rows: {duplicates.get('duplicate_count', 0):,} "
+        logger.info(f"\nDuplicates:")
+        logger.info(f"  Duplicate Rows: {duplicates.get('duplicate_count', 0):,} "
               f"({duplicates.get('duplicate_percentage', 0)}%)")
 
         outliers = self.validation_results.get('outliers', {})
         if outliers:
-            print(f"\nOutliers (IQR method):")
+            logger.info(f"\nOutliers (IQR method):")
             for col, data in outliers.items():
                 if data.get('has_outliers'):
-                    print(f"  - {col}: {data['outlier_count']} ({data['outlier_percentage']}%)")
+                    logger.info(f"  - {col}: {data['outlier_count']} ({data['outlier_percentage']}%)")
 
-        print("\n" + "="*60 + "\n")
+        logger.info("\n" + "="*60 + "\n")

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 import subprocess
 import shutil
+from loguru import logger
 
 
 class KaggleDatasetDownloader:
@@ -65,7 +66,7 @@ class KaggleDatasetDownloader:
         'predictive-maintenance': 'shivamb/machine-predictive-maintenance-classification',
     }
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    def __init__(self, data_dir: Optional[Path] = None) -> None:
         """初始化下載器
 
         Args:
@@ -247,12 +248,12 @@ class KaggleDatasetDownloader:
             )
 
             if result.returncode == 0:
-                print(f"✅ 下載完成: {destination}")
+                logger.success(f"✅ 下載完成: {destination}")
 
                 # 解壓所有 zip 文件
                 import zipfile
                 for zip_file in destination.glob('*.zip'):
-                    print(f"📦 解壓: {zip_file.name}")
+                    logger.info(f"📦 解壓: {zip_file.name}")
                     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
                         zip_ref.extractall(destination)
                     zip_file.unlink()  # 刪除 zip 文件
@@ -260,18 +261,18 @@ class KaggleDatasetDownloader:
                 return destination
             else:
                 error_msg = result.stderr or result.stdout
-                print(f"❌ 下載失敗: {error_msg}")
+                logger.error(f"❌ 下載失敗: {error_msg}")
                 raise RuntimeError(f"下載失敗: {error_msg}")
 
         except Exception as e:
-            print(f"❌ 下載出錯: {e}")
+            logger.error(f"❌ 下載出錯: {e}")
             raise
 
-    def list_popular_datasets(self):
+    def list_popular_datasets(self) -> None:
         """列出常用數據集"""
-        print("\n" + "=" * 80)
-        print("常用 Kaggle 數據集")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("常用 Kaggle 數據集")
+        logger.info("=" * 80)
 
         categories = {
             '結構化數據': ['titanic', 'house-prices', 'credit-fraud', 'customer-churn',
@@ -284,16 +285,16 @@ class KaggleDatasetDownloader:
         }
 
         for category, datasets in categories.items():
-            print(f"\n【{category}】")
+            logger.info(f"\n【{category}】")
             for ds in datasets:
                 full_name = self.POPULAR_DATASETS[ds]
-                print(f"  {ds:30s} -> {full_name}")
+                logger.info(f"  {ds:30s} -> {full_name}")
 
-        print("\n" + "=" * 80)
-        print("使用方法:")
-        print("  downloader.download_dataset('titanic')  # 使用簡稱")
-        print("  downloader.download_dataset('username/dataset-name')  # 使用完整路徑")
-        print("=" * 80 + "\n")
+        logger.info("\n" + "=" * 80)
+        logger.info("使用方法:")
+        logger.info("  downloader.download_dataset('titanic')  # 使用簡稱")
+        logger.info("  downloader.download_dataset('username/dataset-name')  # 使用完整路徑")
+        logger.info("=" * 80 + "\n")
 
     def search_datasets(self, keyword: str, max_results: int = 10) -> List[Dict]:
         """搜索 Kaggle 數據集
@@ -306,10 +307,10 @@ class KaggleDatasetDownloader:
             List[Dict]: 搜索結果列表
         """
         if not self.kaggle_available:
-            print("❌ Kaggle API 不可用")
+            logger.error("❌ Kaggle API 不可用")
             return []
 
-        print(f"🔍 搜索關鍵詞: {keyword}")
+        logger.info(f"🔍 搜索關鍵詞: {keyword}")
 
         try:
             result = subprocess.run(
@@ -320,50 +321,50 @@ class KaggleDatasetDownloader:
             )
 
             if result.returncode == 0:
-                print(result.stdout)
+                logger.info(result.stdout)
                 return []
             else:
-                print(f"❌ 搜索失敗: {result.stderr}")
+                logger.error(f"❌ 搜索失敗: {result.stderr}")
                 return []
 
         except Exception as e:
-            print(f"❌ 搜索出錯: {e}")
+            logger.error(f"❌ 搜索出錯: {e}")
             return []
 
 
-def setup_kaggle_credentials():
+def setup_kaggle_credentials() -> None:
     """設置 Kaggle API 憑證的互動式指南"""
-    print("\n" + "=" * 80)
-    print("Kaggle API 憑證設置指南")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("Kaggle API 憑證設置指南")
+    logger.info("=" * 80)
 
-    print("\n步驟 1: 獲取 API Token")
-    print("  1. 登錄 Kaggle: https://www.kaggle.com")
-    print("  2. 進入 Account 設置: https://www.kaggle.com/settings")
-    print("  3. 滾動到 'API' 部分")
-    print("  4. 點擊 'Create New API Token'")
-    print("  5. 下載 kaggle.json 文件")
+    logger.info("\n步驟 1: 獲取 API Token")
+    logger.info("  1. 登錄 Kaggle: https://www.kaggle.com")
+    logger.info("  2. 進入 Account 設置: https://www.kaggle.com/settings")
+    logger.info("  3. 滾動到 'API' 部分")
+    logger.info("  4. 點擊 'Create New API Token'")
+    logger.info("  5. 下載 kaggle.json 文件")
 
-    print("\n步驟 2: 配置憑證")
+    logger.info("\n步驟 2: 配置憑證")
     kaggle_dir = Path.home() / '.kaggle'
     kaggle_json = kaggle_dir / 'kaggle.json'
 
-    print(f"\n  目標位置: {kaggle_json}")
+    logger.info(f"\n  目標位置: {kaggle_json}")
 
     if kaggle_json.exists():
-        print(f"  ✅ 憑證文件已存在")
+        logger.success("  ✅ 憑證文件已存在")
     else:
         kaggle_dir.mkdir(exist_ok=True)
-        print(f"  📁 創建目錄: {kaggle_dir}")
-        print(f"  ⚠️  請手動將 kaggle.json 複製到: {kaggle_json}")
+        logger.info(f"  📁 創建目錄: {kaggle_dir}")
+        logger.warning(f"  ⚠️  請手動將 kaggle.json 複製到: {kaggle_json}")
 
-    print("\n步驟 3: 設置權限 (Linux/Mac)")
-    print(f"  chmod 600 {kaggle_json}")
+    logger.info("\n步驟 3: 設置權限 (Linux/Mac)")
+    logger.info(f"  chmod 600 {kaggle_json}")
 
-    print("\n步驟 4: 測試")
-    print("  kaggle datasets list")
+    logger.info("\n步驟 4: 測試")
+    logger.info("  kaggle datasets list")
 
-    print("\n" + "=" * 80 + "\n")
+    logger.info("\n" + "=" * 80 + "\n")
 
 
 # 便捷函數
@@ -381,11 +382,11 @@ def quick_download(dataset_name: str, force: bool = False) -> Path:
     return downloader.download_dataset(dataset_name, force=force)
 
 
-def main():
+def main() -> None:
     """主函數 - 演示用法"""
-    print("=" * 80)
-    print("Kaggle 數據集下載器")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("Kaggle 數據集下載器")
+    logger.info("=" * 80)
 
     downloader = KaggleDatasetDownloader()
 
@@ -393,23 +394,23 @@ def main():
     downloader.list_popular_datasets()
 
     # 示例：下載 Titanic 數據集
-    print("\n示例：下載 Titanic 數據集")
-    print("-" * 80)
+    logger.info("\n示例：下載 Titanic 數據集")
+    logger.info("-" * 80)
 
     try:
         data_path = downloader.download_dataset('titanic')
-        print(f"\n✅ 數據集路徑: {data_path}")
+        logger.success(f"\n✅ 數據集路徑: {data_path}")
 
         # 列出文件
-        print("\n文件列表:")
+        logger.info("\n文件列表:")
         for file in data_path.glob('*'):
-            print(f"  - {file.name}")
+            logger.info(f"  - {file.name}")
 
     except Exception as e:
-        print(f"\n❌ 下載失敗: {e}")
-        print("\n如果還沒有配置 Kaggle API，請運行:")
-        print("  from data_analysis_chatbots.kaggle_downloader import setup_kaggle_credentials")
-        print("  setup_kaggle_credentials()")
+        logger.error(f"\n❌ 下載失敗: {e}")
+        logger.info("\n如果還沒有配置 Kaggle API，請運行:")
+        logger.info("  from data_analysis_chatbots.kaggle_downloader import setup_kaggle_credentials")
+        logger.info("  setup_kaggle_credentials()")
 
 
 if __name__ == '__main__':

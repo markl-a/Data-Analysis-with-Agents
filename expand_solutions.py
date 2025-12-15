@@ -230,7 +230,7 @@ def tune_dbscan_parameters(X, eps_range, min_samples_range):
             if n_clusters > 1 and n_noise < len(X):
                 try:
                     silhouette = silhouette_score(X, labels)
-                except:
+                except ValueError:
                     silhouette = -1
             else:
                 silhouette = -1

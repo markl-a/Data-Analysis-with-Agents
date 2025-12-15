@@ -1,12 +1,13 @@
 """K-Means clustering for customer segmentation."""
 
-import pandas as pd
+from typing import Optional, List, Dict, Any
+
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
-from typing import Optional, List, Dict, Any, Tuple
+import pandas as pd
 from loguru import logger
+from sklearn.cluster import KMeans
+from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.preprocessing import StandardScaler
 
 
 class KMeansClusterer:

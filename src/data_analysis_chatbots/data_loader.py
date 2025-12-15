@@ -2,7 +2,7 @@
 
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from loguru import logger
 
 from .config_loader import ConfigLoader
@@ -12,7 +12,7 @@ from .utils import get_project_root, ensure_dir
 class DataLoader:
     """Load and manage datasets for analysis."""
 
-    def __init__(self, config: Optional[ConfigLoader] = None):
+    def __init__(self, config: Optional[ConfigLoader] = None) -> None:
         """
         Initialize the DataLoader.
 
@@ -23,7 +23,7 @@ class DataLoader:
         self.project_root = get_project_root()
         self._setup_paths()
 
-    def _setup_paths(self):
+    def _setup_paths(self) -> None:
         """Setup data paths from configuration."""
         paths = self.config.get_paths()
         self.data_root = self.project_root / paths.get('data_root', 'data')
@@ -156,7 +156,7 @@ class DataLoader:
         """
         return self.config.get_dataset_config(dataset_name)
 
-    def list_available_datasets(self) -> list:
+    def list_available_datasets(self) -> List[str]:
         """
         List all available datasets in the configuration.
 
