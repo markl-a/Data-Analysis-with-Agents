@@ -77,11 +77,9 @@ jobs:
 
     - name: Security check with bandit
       run: bandit -r src/ -ll
-      continue-on-error: true
 
     - name: Check dependencies for security vulnerabilities
-      run: safety check --json
-      continue-on-error: true
+      run: safety check --json || echo "::warning::Some dependencies have known vulnerabilities"
 
   build:
     name: Build Package

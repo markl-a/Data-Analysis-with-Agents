@@ -5,12 +5,13 @@ Streamlit 互動式客戶分析儀表板
     streamlit run app.py
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime, timedelta
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import streamlit as st
 
 from data_analysis_chatbots import DataLoader
 from data_analysis_chatbots.preprocessing import DataValidator
