@@ -20,6 +20,43 @@ from .marketing import CLVPredictor
 from .utils import setup_logging
 
 
+def validate_output_path(output_path: str, allowed_dirs: list = None) -> Path:
+    """
+    驗證輸出路徑的安全性，防止路徑遍歷攻擊
+
+    Args:
+        output_path: 用戶指定的輸出路徑
+        allowed_dirs: 允許的目錄列表，默認為 ['data/outputs', 'outputs']
+
+    Returns:
+        驗證後的 Path 對象
+
+    Raises:
+        ValueError: 如果路徑不在允許的目錄內
+    """
+    if allowed_dirs is None:
+        allowed_dirs = ['data/outputs', 'outputs', 'data']
+
+    output_path = Path(output_path).resolve()
+
+    # 獲取項目根目錄
+    project_root = Path(__file__).parent.parent.parent.resolve()
+
+    # 檢查是否在允許的目錄內
+    for allowed_dir in allowed_dirs:
+        allowed_path = (project_root / allowed_dir).resolve()
+        try:
+            output_path.relative_to(allowed_path)
+            return output_path
+        except ValueError:
+            continue
+
+    raise ValueError(
+        f"Output path must be within allowed directories: {allowed_dirs}. "
+        f"Got: {output_path}"
+    )
+
+
 def download_data(args) -> None:
     """下載數據集"""
     setup_logging(level="INFO")
@@ -118,7 +155,14 @@ def analyze_data(args) -> None:
                 logger.info(f"\nClustering Metrics: {metrics}")
 
                 # 保存結果
-                output_file = args.output or f'data/outputs/{algorithm}_cluster_results.csv'
+                if args.output:
+                    try:
+                        output_file = validate_output_path(args.output)
+                    except ValueError as e:
+                        logger.error(f"Invalid output path: {e}")
+                        sys.exit(1)
+                else:
+                    output_file = f'data/outputs/{algorithm}_cluster_results.csv'
                 df.to_csv(output_file, index=False)
                 logger.success(f"Results saved to {output_file}")
 
@@ -147,7 +191,14 @@ def analyze_data(args) -> None:
             logger.info(summary)
 
             # 保存結果
-            output_file = args.output or 'data/outputs/rfm_segments.csv'
+            if args.output:
+                try:
+                    output_file = validate_output_path(args.output)
+                except ValueError as e:
+                    logger.error(f"Invalid output path: {e}")
+                    sys.exit(1)
+            else:
+                output_file = 'data/outputs/rfm_segments.csv'
             segments.to_csv(output_file, index=False)
             logger.success(f"Results saved to {output_file}")
 

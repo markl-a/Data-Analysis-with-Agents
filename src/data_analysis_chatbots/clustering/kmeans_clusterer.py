@@ -9,6 +9,8 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
+from ..exceptions import require_fitted
+
 
 class KMeansClusterer:
     """Perform K-Means clustering for customer segmentation."""
@@ -93,6 +95,7 @@ class KMeansClusterer:
 
         return self
 
+    @require_fitted
     def predict(self, df: pd.DataFrame, scale_features: bool = True) -> np.ndarray:
         """
         Predict cluster labels for new data.
@@ -104,9 +107,6 @@ class KMeansClusterer:
         Returns:
             Cluster labels
         """
-        if self.model is None:
-            raise ValueError("Model not fitted. Call fit() first.")
-
         X = df[self.feature_columns].copy()
 
         # Handle missing values
@@ -141,6 +141,7 @@ class KMeansClusterer:
         self.fit(df, feature_columns, scale_features)
         return self.model.labels_
 
+    @require_fitted
     def get_cluster_centers(self, inverse_transform: bool = True) -> pd.DataFrame:
         """
         Get cluster centers.
@@ -151,9 +152,6 @@ class KMeansClusterer:
         Returns:
             DataFrame with cluster centers
         """
-        if self.model is None:
-            raise ValueError("Model not fitted. Call fit() first.")
-
         centers = self.model.cluster_centers_
 
         if inverse_transform and hasattr(self.scaler, 'inverse_transform'):
@@ -199,6 +197,7 @@ class KMeansClusterer:
 
         return summary
 
+    @require_fitted
     def evaluate_clustering(self) -> Dict[str, float]:
         """
         Evaluate clustering quality.
@@ -206,9 +205,6 @@ class KMeansClusterer:
         Returns:
             Dictionary with evaluation metrics
         """
-        if self.model is None or self.scaled_data is None:
-            raise ValueError("Model not fitted. Call fit() first.")
-
         logger.info("Evaluating clustering quality...")
 
         metrics = {

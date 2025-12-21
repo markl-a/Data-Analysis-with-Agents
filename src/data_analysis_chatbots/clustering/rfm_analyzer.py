@@ -187,60 +187,81 @@ class RFMAnalyzer:
 
         rfm = self.rfm_df.copy()
 
-        def assign_segment(row):
-            """Assign segment based on RFM scores."""
-            r, f, m = row['R_Score'], row['F_Score'], row['M_Score']
-
-            # Champions: Recent, frequent, high spenders
-            if r >= 4 and f >= 4 and m >= 4:
-                return 'Champions'
-
-            # Loyal Customers: Frequent, high spenders
-            elif f >= 4 and m >= 4:
-                return 'Loyal Customers'
-
-            # Potential Loyalists: Recent, good frequency
-            elif r >= 3 and f >= 3:
-                return 'Potential Loyalists'
-
-            # Recent Customers: Very recent, low frequency
-            elif r >= 4 and f <= 2:
-                return 'Recent Customers'
-
-            # Promising: Recent, moderate spenders
-            elif r >= 3 and m >= 3:
-                return 'Promising'
-
-            # Need Attention: Above average recency, frequency, and monetary
-            elif r >= 3 or f >= 3 or m >= 3:
-                return 'Need Attention'
-
-            # About to Sleep: Below average recency, frequency, and monetary
-            elif r == 2 and f == 2:
-                return 'About to Sleep'
-
-            # At Risk: Low recency, but were frequent/high spenders
-            elif f >= 3 or m >= 3:
-                return 'At Risk'
-
-            # Can't Lose Them: Were best customers, now gone
-            elif f >= 4 and m >= 4:
-                return "Can't Lose Them"
-
-            # Hibernating: Low recency, frequency, and monetary
-            elif r <= 2 and f <= 2 and m <= 2:
-                return 'Hibernating'
-
-            # Lost: Lowest scores
-            else:
-                return 'Lost'
-
-        rfm['Segment'] = rfm.apply(assign_segment, axis=1)
+        # 使用向量化操作進行客戶分群（性能優化）
+        # 相比 .apply(axis=1)，向量化操作可提升 10-100 倍性能
+        rfm['Segment'] = self._assign_segment_vectorized(rfm)
 
         logger.success("Customer segmentation completed")
 
         self.rfm_df = rfm
         return rfm
+
+    def _assign_segment_vectorized(self, df: pd.DataFrame) -> pd.Series:
+        """
+        使用向量化操作分配客戶分群。
+
+        性能優化：使用布爾掩碼替代 .apply(axis=1)，
+        對於大型數據集可提升 10-100 倍性能。
+
+        Args:
+            df: RFM DataFrame with R_Score, F_Score, M_Score columns
+
+        Returns:
+            Series containing segment labels
+        """
+        r = df['R_Score']
+        f = df['F_Score']
+        m = df['M_Score']
+
+        # 初始化所有行為 'Lost' (默認值)
+        segments = pd.Series('Lost', index=df.index, dtype='object')
+
+        # 按照與原始 if-elif 鏈相反的順序應用條件
+        # 這樣優先級更高的條件會覆蓋優先級低的
+
+        # Hibernating: Low recency, frequency, and monetary
+        mask = (r <= 2) & (f <= 2) & (m <= 2)
+        segments[mask] = 'Hibernating'
+
+        # Can't Lose Them: Were best customers, now gone
+        # 注意：此條件在原邏輯中實際上無法到達，因為會被 Loyal Customers 捕獲
+        mask = (f >= 4) & (m >= 4)
+        segments[mask] = "Can't Lose Them"
+
+        # At Risk: Low recency, but were frequent/high spenders
+        # 注意：此條件在原邏輯中實際上無法到達，因為會被 Need Attention 捕獲
+        mask = (f >= 3) | (m >= 3)
+        segments[mask] = 'At Risk'
+
+        # About to Sleep: Below average recency, frequency, and monetary
+        mask = (r == 2) & (f == 2)
+        segments[mask] = 'About to Sleep'
+
+        # Need Attention: Above average recency, frequency, and monetary
+        mask = (r >= 3) | (f >= 3) | (m >= 3)
+        segments[mask] = 'Need Attention'
+
+        # Promising: Recent, moderate spenders
+        mask = (r >= 3) & (m >= 3)
+        segments[mask] = 'Promising'
+
+        # Recent Customers: Very recent, low frequency
+        mask = (r >= 4) & (f <= 2)
+        segments[mask] = 'Recent Customers'
+
+        # Potential Loyalists: Recent, good frequency
+        mask = (r >= 3) & (f >= 3)
+        segments[mask] = 'Potential Loyalists'
+
+        # Loyal Customers: Frequent, high spenders
+        mask = (f >= 4) & (m >= 4)
+        segments[mask] = 'Loyal Customers'
+
+        # Champions: Recent, frequent, high spenders (highest priority)
+        mask = (r >= 4) & (f >= 4) & (m >= 4)
+        segments[mask] = 'Champions'
+
+        return segments
 
     def get_segment_summary(self) -> pd.DataFrame:
         """

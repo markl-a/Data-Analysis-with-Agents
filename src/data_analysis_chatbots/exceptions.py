@@ -244,3 +244,102 @@ def raise_if_invalid_parameter(condition: bool, message: str, parameter_name: st
         if parameter_name:
             message = f"參數 '{parameter_name}' 無效: {message}"
         raise ConfigurationError(message)
+
+
+# 裝飾器工具
+
+from functools import wraps
+from typing import Callable, Type, Tuple
+
+
+def require_fitted(method: Callable) -> Callable:
+    """
+    裝飾器：檢查模型是否已訓練
+
+    此裝飾器用於需要訓練模型才能執行的方法（如 predict, get_cluster_centers 等）。
+    它會檢查實例的 model 或 model_ 屬性是否已設置。
+
+    Args:
+        method: 需要檢查的方法
+
+    Returns:
+        包裝後的方法
+
+    Raises:
+        ClusteringError: 當模型未訓練時
+
+    Usage:
+        >>> class MyClusterer:
+        ...     def __init__(self):
+        ...         self.model = None
+        ...
+        ...     @require_fitted
+        ...     def predict(self, df):
+        ...         return self.model.predict(df)
+        ...
+        >>> clusterer = MyClusterer()
+        >>> clusterer.predict(df)  # 拋出 ClusteringError
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        model_attr = getattr(self, 'model', None) or getattr(self, 'model_', None)
+        if model_attr is None:
+            raise ClusteringError(
+                f"{self.__class__.__name__} has not been fitted. "
+                f"Please call fit() first.",
+                algorithm=self.__class__.__name__
+            )
+        return method(self, *args, **kwargs)
+    return wrapper
+
+
+def handle_exceptions(
+    error_class: Type[DataAnalysisError],
+    message_prefix: str = "",
+    reraise: bool = True
+) -> Callable:
+    """
+    裝飾器：統一異常處理
+
+    此裝飾器捕獲函數執行時的異常，記錄日誌，並根據配置重新拋出指定類型的異常。
+    它會保留原始的異常鏈，便於調試。
+
+    Args:
+        error_class: 要拋出的異常類（必須是 DataAnalysisError 的子類）
+        message_prefix: 錯誤消息前綴，用於提供上下文信息
+        reraise: 是否重新拋出異常。如果為 False，則返回 None
+
+    Returns:
+        裝飾器函數
+
+    Raises:
+        error_class: 當函數執行失敗且 reraise=True 時
+
+    Usage:
+        >>> @handle_exceptions(ClusteringError, "Clustering failed")
+        ... def fit(self, df, features):
+        ...     # 如果這裡拋出異常，會被包裝成 ClusteringError
+        ...     return self.model.fit(df[features])
+
+        >>> @handle_exceptions(ValidationError, "Data validation failed", reraise=False)
+        ... def validate_data(df):
+        ...     # 如果失敗，記錄錯誤但不拋出異常，返回 None
+        ...     check_data(df)
+    """
+    def decorator(method: Callable) -> Callable:
+        @wraps(method)
+        def wrapper(*args, **kwargs):
+            try:
+                return method(*args, **kwargs)
+            except error_class:
+                # 如果已經是目標異常類型，直接重新拋出
+                raise
+            except Exception as e:
+                from loguru import logger
+
+                logger.error(f"{message_prefix}: {e}")
+                if reraise:
+                    raise error_class(f"{message_prefix}: {str(e)}") from e
+                return None
+        return wrapper
+    return decorator

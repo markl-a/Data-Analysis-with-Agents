@@ -23,7 +23,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, davies_bouldin_score
 from loguru import logger
 
-from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing
+from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing, require_fitted
 
 
 class GMMClusterer:
@@ -174,6 +174,7 @@ class GMMClusterer:
                 n_clusters=self.n_components
             )
 
+    @require_fitted
     def predict(self, df: pd.DataFrame, feature_columns: List[str]) -> np.ndarray:
         """預測新數據的聚類標籤(硬聚類)
 
@@ -187,9 +188,6 @@ class GMMClusterer:
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        if self.model is None:
-            raise ClusteringError("模型尚未訓練,請先調用fit()", algorithm="GMM")
-
         raise_if_empty_dataframe(df, "GMM預測")
         raise_if_columns_missing(df, feature_columns, "GMM預測")
 
@@ -200,6 +198,7 @@ class GMMClusterer:
 
         return self.model.predict(X)
 
+    @require_fitted
     def predict_proba(self, df: pd.DataFrame, feature_columns: List[str]) -> np.ndarray:
         """預測新數據屬於各聚類的概率(軟聚類)
 
@@ -213,9 +212,6 @@ class GMMClusterer:
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        if self.model is None:
-            raise ClusteringError("模型尚未訓練,請先調用fit()", algorithm="GMM")
-
         raise_if_empty_dataframe(df, "GMM概率預測")
         raise_if_columns_missing(df, feature_columns, "GMM概率預測")
 

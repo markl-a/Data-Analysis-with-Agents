@@ -8,6 +8,8 @@
 - RFMAnalyzer: RFM客戶分析
 """
 
+from .base import BaseClusterer
+from .factory import ClustererFactory
 from .kmeans_clusterer import KMeansClusterer
 from .rfm_analyzer import RFMAnalyzer
 from .dbscan_clusterer import DBSCANClusterer
@@ -15,6 +17,8 @@ from .gmm_clusterer import GMMClusterer
 from .hierarchical_clusterer import HierarchicalClusterer
 
 __all__ = [
+    "BaseClusterer",
+    "ClustererFactory",
     "KMeansClusterer",
     "RFMAnalyzer",
     "DBSCANClusterer",

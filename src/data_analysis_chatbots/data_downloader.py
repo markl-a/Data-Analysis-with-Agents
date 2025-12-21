@@ -47,9 +47,43 @@ class DataDownloader:
         # Check permissions (Unix-like systems)
         if os.name != 'nt':  # Not Windows
             stat_info = os.stat(kaggle_json)
-            if stat_info.st_mode & 0o077:
-                logger.warning("Kaggle credentials file has incorrect permissions")
-                logger.info("Run: chmod 600 ~/.kaggle/kaggle.json")
+            current_permissions = stat_info.st_mode & 0o777
+
+            # 檢查文件權限是否正確 (必須是 600)
+            if current_permissions != 0o600:
+                logger.error("Kaggle credentials file has incorrect permissions!")
+                logger.error(f"Current permissions: {oct(current_permissions)}")
+                logger.error("Required permissions: 0o600 (rw-------)")
+                logger.info("")
+                logger.info("Security Risk: Your API credentials are exposed to other users!")
+                logger.info("")
+                logger.info("To fix this issue, run:")
+                logger.info(f"  chmod 600 {kaggle_json}")
+                logger.info("")
+                logger.info("This will:")
+                logger.info("  - Give read/write access to owner only")
+                logger.info("  - Remove all access from group and others")
+                return False
+
+            # 檢查文件所有權
+            current_uid = os.getuid()
+            file_uid = stat_info.st_uid
+            if current_uid != file_uid:
+                import pwd
+                try:
+                    file_owner = pwd.getpwuid(file_uid).pw_name
+                    current_user = pwd.getpwuid(current_uid).pw_name
+                except KeyError:
+                    file_owner = str(file_uid)
+                    current_user = str(current_uid)
+
+                logger.error("Kaggle credentials file has incorrect ownership!")
+                logger.error(f"File owner: {file_owner} (UID: {file_uid})")
+                logger.error(f"Current user: {current_user} (UID: {current_uid})")
+                logger.info("")
+                logger.info("To fix this issue, run:")
+                logger.info(f"  sudo chown {current_user} {kaggle_json}")
+                logger.info(f"  chmod 600 {kaggle_json}")
                 return False
 
         return True
