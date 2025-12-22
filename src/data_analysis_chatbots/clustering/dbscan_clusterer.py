@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score, davies_bouldin_score
 from loguru import logger
 
-from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing
+from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing, require_fitted
 
 
 class DBSCANClusterer:
@@ -141,6 +141,7 @@ class DBSCANClusterer:
         except Exception as e:
             raise ClusteringError(f"DBSCAN聚類失敗: {str(e)}", algorithm="DBSCAN")
 
+    @require_fitted
     def predict(self, df: pd.DataFrame, feature_columns: List[str]) -> np.ndarray:
         """預測新數據的聚類標籤
 
@@ -157,9 +158,6 @@ class DBSCANClusterer:
         Raises:
             ClusteringError: 當模型未訓練或預測失敗時
         """
-        if self.model is None:
-            raise ClusteringError("模型尚未訓練,請先調用fit()", algorithm="DBSCAN")
-
         raise_if_empty_dataframe(df, "DBSCAN預測")
         raise_if_columns_missing(df, feature_columns, "DBSCAN預測")
 
@@ -294,6 +292,7 @@ class DBSCANClusterer:
 
         return summary_df
 
+    @require_fitted
     def get_core_samples(self) -> np.ndarray:
         """獲取核心樣本的索引
 
@@ -305,9 +304,6 @@ class DBSCANClusterer:
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        if self.model is None:
-            raise ClusteringError("模型尚未訓練", algorithm="DBSCAN")
-
         return self.model.core_sample_indices_
 
     def find_optimal_eps(
