@@ -15,6 +15,7 @@ from .rfm_analyzer import RFMAnalyzer
 from .dbscan_clusterer import DBSCANClusterer
 from .gmm_clusterer import GMMClusterer
 from .hierarchical_clusterer import HierarchicalClusterer
+from .evaluator import ClusteringEvaluator, find_optimal_k
 
 __all__ = [
     "BaseClusterer",
@@ -24,4 +25,6 @@ __all__ = [
     "DBSCANClusterer",
     "GMMClusterer",
     "HierarchicalClusterer",
+    "ClusteringEvaluator",
+    "find_optimal_k",
 ]

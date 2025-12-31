@@ -17,7 +17,15 @@ from typing import Union, Optional
 from loguru import logger
 
 # Import performance monitoring decorators and security utilities
-from .performance import timer, memory_profiler, retry
+from .performance import (
+    timer,
+    memory_profiler,
+    retry,
+    monitor,
+    memoize,
+    cached_property_with_ttl,
+    LRUCache
+)
 from .security import SensitiveDataFilter
 
 
@@ -175,6 +183,11 @@ __all__ = [
     "timer",
     "memory_profiler",
     "retry",
+    "monitor",
+    # Caching utilities
+    "memoize",
+    "cached_property_with_ttl",
+    "LRUCache",
     # Security
     "SensitiveDataFilter",
     # Logging and setup
