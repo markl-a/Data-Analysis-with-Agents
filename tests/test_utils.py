@@ -3,6 +3,7 @@
 import pytest
 import tempfile
 import shutil
+import time
 from pathlib import Path
 
 from data_analysis_chatbots.utils import (
@@ -12,7 +13,10 @@ from data_analysis_chatbots.utils import (
     format_currency,
     format_percentage,
     safe_divide,
-    truncate_string
+    truncate_string,
+    memoize,
+    LRUCache,
+    cached_property_with_ttl
 )
 
 
@@ -344,3 +348,218 @@ class TestPathIntegration:
             assert isinstance(path, Path)
             assert data_type in str(path)
             assert path.parent.exists()
+
+
+class TestLRUCache:
+    """Test LRU Cache functionality."""
+
+    def test_basic_set_get(self):
+        """Test basic set and get operations."""
+        cache = LRUCache(maxsize=10)
+        cache.set("key1", "value1")
+
+        assert cache.get("key1") == "value1"
+
+    def test_missing_key(self):
+        """Test getting a non-existent key."""
+        cache = LRUCache(maxsize=10)
+
+        assert cache.get("missing") is None
+
+    def test_maxsize_eviction(self):
+        """Test that oldest items are evicted when maxsize is reached."""
+        cache = LRUCache(maxsize=3)
+
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
+        cache.set("d", 4)  # This should evict "a"
+
+        assert cache.get("a") is None
+        assert cache.get("b") == 2
+        assert cache.get("c") == 3
+        assert cache.get("d") == 4
+
+    def test_lru_order(self):
+        """Test that recently used items are kept."""
+        cache = LRUCache(maxsize=3)
+
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)
+
+        # Access "a" to make it recently used
+        cache.get("a")
+
+        # Add new item - should evict "b" (least recently used)
+        cache.set("d", 4)
+
+        assert cache.get("a") == 1
+        assert cache.get("b") is None
+        assert cache.get("c") == 3
+        assert cache.get("d") == 4
+
+    def test_ttl_expiration(self):
+        """Test time-to-live expiration."""
+        cache = LRUCache(maxsize=10, ttl=0.1)  # 100ms TTL
+
+        cache.set("key", "value")
+        assert cache.get("key") == "value"
+
+        time.sleep(0.15)  # Wait for TTL to expire
+        assert cache.get("key") is None
+
+    def test_clear(self):
+        """Test cache clearing."""
+        cache = LRUCache(maxsize=10)
+
+        cache.set("a", 1)
+        cache.set("b", 2)
+
+        cache.clear()
+
+        assert cache.get("a") is None
+        assert cache.get("b") is None
+
+    def test_stats(self):
+        """Test cache statistics."""
+        cache = LRUCache(maxsize=10)
+
+        cache.set("a", 1)
+        cache.get("a")  # Hit
+        cache.get("b")  # Miss
+
+        stats = cache.stats()
+
+        assert stats['size'] == 1
+        assert stats['maxsize'] == 10
+        assert stats['hits'] == 1
+        assert stats['misses'] == 1
+        assert stats['hit_rate'] == 0.5
+
+
+class TestMemoizeDecorator:
+    """Test memoize decorator functionality."""
+
+    def test_basic_memoization(self):
+        """Test that function results are cached."""
+        call_count = 0
+
+        @memoize(maxsize=10)
+        def expensive_function(x):
+            nonlocal call_count
+            call_count += 1
+            return x * 2
+
+        result1 = expensive_function(5)
+        result2 = expensive_function(5)
+
+        assert result1 == 10
+        assert result2 == 10
+        assert call_count == 1  # Should only be called once
+
+    def test_different_arguments(self):
+        """Test that different arguments are cached separately."""
+        @memoize(maxsize=10)
+        def add(x, y):
+            return x + y
+
+        assert add(1, 2) == 3
+        assert add(3, 4) == 7
+        assert add(1, 2) == 3
+
+    def test_cache_stats_access(self):
+        """Test accessing cache statistics through the decorated function."""
+        @memoize(maxsize=10)
+        def func(x):
+            return x
+
+        func(1)
+        func(1)
+        func(2)
+
+        stats = func.cache_stats()
+        assert stats['hits'] == 1
+        assert stats['misses'] == 2
+
+    def test_cache_clear(self):
+        """Test clearing the cache through the decorated function."""
+        call_count = 0
+
+        @memoize(maxsize=10)
+        def func(x):
+            nonlocal call_count
+            call_count += 1
+            return x
+
+        func(1)
+        func(1)  # Cached
+        func.cache_clear()
+        func(1)  # Not cached after clear
+
+        assert call_count == 2
+
+    def test_keyword_arguments(self):
+        """Test memoization with keyword arguments."""
+        @memoize(maxsize=10)
+        def greet(name, greeting="Hello"):
+            return f"{greeting}, {name}!"
+
+        assert greet("Alice") == "Hello, Alice!"
+        assert greet("Bob", greeting="Hi") == "Hi, Bob!"
+        assert greet(name="Charlie", greeting="Hey") == "Hey, Charlie!"
+
+
+class TestCachedPropertyWithTTL:
+    """Test cached property with TTL functionality."""
+
+    def test_basic_caching(self):
+        """Test that property is cached."""
+        class Counter:
+            def __init__(self):
+                self.count = 0
+
+            @cached_property_with_ttl(ttl=1.0)
+            def value(self):
+                self.count += 1
+                return self.count
+
+        obj = Counter()
+        assert obj.value == 1
+        assert obj.value == 1  # Cached
+        assert obj.count == 1  # Only computed once
+
+    def test_ttl_expiration(self):
+        """Test that property expires after TTL."""
+        class Counter:
+            def __init__(self):
+                self.count = 0
+
+            @cached_property_with_ttl(ttl=0.1)
+            def value(self):
+                self.count += 1
+                return self.count
+
+        obj = Counter()
+        assert obj.value == 1
+        time.sleep(0.15)  # Wait for TTL
+        assert obj.value == 2  # Recomputed after expiration
+
+    def test_different_instances(self):
+        """Test that each instance has its own cache."""
+        class Counter:
+            def __init__(self):
+                self.count = 0
+
+            @cached_property_with_ttl(ttl=1.0)
+            def value(self):
+                self.count += 1
+                return self.count
+
+        obj1 = Counter()
+        obj2 = Counter()
+
+        assert obj1.value == 1
+        assert obj2.value == 1
+        assert obj1.count == 1
+        assert obj2.count == 1
