@@ -91,7 +91,7 @@ class ConfigLoader:
 
         return analysis[analysis_type]
 
-    def reload(self):
+    def reload(self) -> None:
         """Reload configuration from file."""
         self.config = self._load_config()
 
