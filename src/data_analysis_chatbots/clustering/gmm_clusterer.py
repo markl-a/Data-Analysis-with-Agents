@@ -20,13 +20,13 @@ import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
 from loguru import logger
 
+from .base import BaseClusterer
 from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing, require_fitted
 
 
-class GMMClusterer:
+class GMMClusterer(BaseClusterer):
     """高斯混合模型聚類分析器
 
     GMM假設數據由多個高斯分佈混合而成,提供軟聚類(每個點屬於各聚類的概率)。
@@ -75,6 +75,8 @@ class GMMClusterer:
         Raises:
             ClusteringError: 當參數無效時
         """
+        super().__init__(normalize=normalize, random_state=random_state)
+
         if n_components < 1:
             raise ClusteringError("n_components必須至少為1", algorithm="GMM", n_clusters=n_components)
 
@@ -85,14 +87,11 @@ class GMMClusterer:
             )
 
         self.n_components = n_components
+        self.n_clusters = n_components  # 別名，保持一致性
         self.covariance_type = covariance_type
         self.max_iter = max_iter
-        self.random_state = random_state
-        self.normalize = normalize
 
         self.model: Optional[GaussianMixture] = None
-        self.scaler: Optional[StandardScaler] = None
-        self.labels_: Optional[np.ndarray] = None
         self.probabilities_: Optional[np.ndarray] = None
 
         logger.info(
@@ -119,6 +118,9 @@ class GMMClusterer:
 
         logger.info(f"開始GMM聚類: 特徵={feature_columns}, n_components={self.n_components}")
 
+        # 保存特徵列名
+        self.feature_columns = feature_columns
+
         # 提取特徵
         X = df[feature_columns].values
 
@@ -139,6 +141,9 @@ class GMMClusterer:
             self.scaler = StandardScaler()
             X = self.scaler.fit_transform(X)
             logger.debug("特徵已標準化")
+
+        # 保存訓練數據用於評估
+        self._X_fitted = X
 
         # 訓練GMM
         try:
@@ -235,14 +240,18 @@ class GMMClusterer:
         self.fit(df, feature_columns)
         return self.labels_
 
-    def evaluate_clustering(self, df: pd.DataFrame, feature_columns: List[str]) -> Dict[str, float]:
-        """評估聚類質量
+    def evaluate_clustering(
+        self,
+        X: Optional[np.ndarray] = None,
+        labels: Optional[np.ndarray] = None
+    ) -> Dict[str, float]:
+        """評估聚類質量（擴展基類方法，添加 GMM 特有指標）
 
-        包含BIC、AIC、輪廓係數等多個指標
+        包含 BIC、AIC、輪廓係數等多個指標
 
         Args:
-            df: 輸入數據DataFrame
-            feature_columns: 特徵列名
+            X: 特徵數據（默認使用 self._X_fitted）
+            labels: 聚類標籤（默認使用 self.labels_）
 
         Returns:
             包含評估指標的字典
@@ -250,99 +259,61 @@ class GMMClusterer:
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        if self.model is None or self.labels_ is None:
-            raise ClusteringError("模型尚未訓練,無法評估", algorithm="GMM")
+        # 獲取基類的評估指標
+        metrics = super().evaluate_clustering(X, labels)
 
-        X = df[feature_columns].values
-        if self.normalize and self.scaler is not None:
-            X = self.scaler.transform(X)
+        # 添加 GMM 特有的指標
+        if self.model is not None and self._X_fitted is not None:
+            X_data = X if X is not None else self._X_fitted
+            metrics.update({
+                'bic': float(self.model.bic(X_data)),
+                'aic': float(self.model.aic(X_data)),
+                'log_likelihood': float(self.model.score(X_data) * len(X_data)),
+                'converged': self.model.converged_,
+                'n_iterations': self.model.n_iter_
+            })
 
-        metrics = {
-            'n_components': self.n_components,
-            'n_samples': len(self.labels_),
-            'bic': self.model.bic(X),
-            'aic': self.model.aic(X),
-            'log_likelihood': self.model.score(X) * len(X),
-            'converged': self.model.converged_,
-            'n_iterations': self.model.n_iter_
-        }
-
-        # 計算聚類分佈
-        unique, counts = np.unique(self.labels_, return_counts=True)
-        metrics['cluster_distribution'] = dict(zip(unique.tolist(), counts.tolist()))
-
-        # 輪廓係數(需要至少2個聚類)
-        if self.n_components >= 2:
-            try:
-                metrics['silhouette_score'] = silhouette_score(X, self.labels_)
-            except Exception as e:
-                logger.warning(f"無法計算輪廓係數: {e}")
-                metrics['silhouette_score'] = None
-
-            try:
-                metrics['davies_bouldin_score'] = davies_bouldin_score(X, self.labels_)
-            except Exception as e:
-                logger.warning(f"無法計算Davies-Bouldin指數: {e}")
-                metrics['davies_bouldin_score'] = None
-        else:
-            metrics['silhouette_score'] = None
-            metrics['davies_bouldin_score'] = None
-
-        logger.info(f"聚類評估完成: BIC={metrics['bic']:.2f}, AIC={metrics['aic']:.2f}")
+        logger.info(f"聚類評估完成: BIC={metrics.get('bic', 'N/A')}, AIC={metrics.get('aic', 'N/A')}")
         return metrics
 
-    def get_cluster_summary(self, df: pd.DataFrame, feature_columns: List[str]) -> pd.DataFrame:
-        """獲取每個聚類的統計摘要
+    def get_cluster_summary(
+        self,
+        df: pd.DataFrame,
+        feature_columns: List[str],
+        labels: Optional[np.ndarray] = None,
+        extra_stats: Optional[Dict] = None
+    ) -> pd.DataFrame:
+        """獲取每個聚類的統計摘要（擴展基類方法，添加確定性度量）
 
         Args:
-            df: 原始數據DataFrame
+            df: 原始數據 DataFrame
             feature_columns: 特徵列名
+            labels: 聚類標籤（默認使用 self.labels_）
+            extra_stats: 額外統計量
 
         Returns:
-            聚類摘要DataFrame
+            聚類摘要 DataFrame，包含 GMM 特有的 Avg_Certainty 列
 
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        if self.labels_ is None:
-            raise ClusteringError("模型尚未訓練,無法生成摘要", algorithm="GMM")
+        # 構建包含確定性度量的額外統計
+        gmm_stats = extra_stats.copy() if extra_stats else {}
 
-        df_copy = df.copy()
-        df_copy['Cluster'] = self.labels_
-
-        # 添加不確定性度量(最大概率)
         if self.probabilities_ is not None:
-            df_copy['Certainty'] = self.probabilities_.max(axis=1)
+            # 添加確定性統計
+            def calc_avg_certainty(cluster_data: pd.DataFrame) -> float:
+                indices = cluster_data.index
+                # 從原始 DataFrame 索引獲取對應的概率
+                mask = df.index.isin(indices)
+                if mask.any():
+                    return float(self.probabilities_[mask].max(axis=1).mean())
+                return 0.0
 
-        summary_list = []
-        for cluster_id in range(self.n_components):
-            cluster_data = df_copy[df_copy['Cluster'] == cluster_id]
+            gmm_stats['Avg_Certainty'] = calc_avg_certainty
 
-            if len(cluster_data) == 0:
-                logger.warning(f"聚類 {cluster_id} 為空")
-                continue
-
-            summary = {
-                'Cluster': cluster_id,
-                'Size': len(cluster_data),
-                'Percentage': len(cluster_data) / len(df_copy) * 100
-            }
-
-            # 平均確定性
-            if 'Certainty' in cluster_data.columns:
-                summary['Avg_Certainty'] = cluster_data['Certainty'].mean()
-
-            # 特徵統計
-            for col in feature_columns:
-                summary[f'{col}_mean'] = cluster_data[col].mean()
-                summary[f'{col}_std'] = cluster_data[col].std()
-
-            summary_list.append(summary)
-
-        summary_df = pd.DataFrame(summary_list)
-        logger.debug(f"生成聚類摘要: {len(summary_list)} 個聚類")
-
-        return summary_df
+        # 調用基類方法
+        return super().get_cluster_summary(df, feature_columns, labels, gmm_stats)
 
     def get_uncertain_samples(
         self,

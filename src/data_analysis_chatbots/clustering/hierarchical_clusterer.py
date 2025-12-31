@@ -20,14 +20,14 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
 from scipy.cluster.hierarchy import dendrogram, linkage
 from loguru import logger
 
+from .base import BaseClusterer
 from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing
 
 
-class HierarchicalClusterer:
+class HierarchicalClusterer(BaseClusterer):
     """層次聚類分析器
 
     使用凝聚式(Agglomerative)層次聚類算法,從下到上構建聚類層次。
@@ -59,7 +59,8 @@ class HierarchicalClusterer:
         n_clusters: Optional[int] = 2,
         linkage: str = 'ward',
         metric: str = 'euclidean',
-        normalize: bool = True
+        normalize: bool = True,
+        random_state: int = 42
     ):
         """初始化層次聚類器
 
@@ -68,10 +69,13 @@ class HierarchicalClusterer:
             linkage: 連接方法(ward/complete/average/single)
             metric: 距離度量(euclidean/manhattan/cosine等)
             normalize: 是否標準化特徵
+            random_state: 隨機種子
 
         Raises:
             ClusteringError: 當參數無效時
         """
+        super().__init__(normalize=normalize, random_state=random_state)
+
         if n_clusters is not None and n_clusters < 1:
             raise ClusteringError(
                 "n_clusters必須至少為1或None",
@@ -93,13 +97,9 @@ class HierarchicalClusterer:
         self.n_clusters = n_clusters
         self.linkage = linkage
         self.metric = metric
-        self.normalize = normalize
 
         self.model: Optional[AgglomerativeClustering] = None
-        self.scaler: Optional[StandardScaler] = None
-        self.labels_: Optional[np.ndarray] = None
         self.linkage_matrix_: Optional[np.ndarray] = None
-        self._X_fitted: Optional[np.ndarray] = None  # 保存訓練數據用於繪圖
 
         logger.info(
             f"初始化層次聚類器: n_clusters={n_clusters}, "
@@ -128,6 +128,9 @@ class HierarchicalClusterer:
             f"n_clusters={self.n_clusters}"
         )
 
+        # 保存特徵列名
+        self.feature_columns = feature_columns
+
         # 提取特徵
         X = df[feature_columns].values
 
@@ -141,7 +144,7 @@ class HierarchicalClusterer:
             X = self.scaler.fit_transform(X)
             logger.debug("特徵已標準化")
 
-        # 保存訓練數據用於繪製樹狀圖
+        # 保存訓練數據用於評估和繪製樹狀圖
         self._X_fitted = X
 
         # 訓練模型
@@ -230,97 +233,7 @@ class HierarchicalClusterer:
         self.fit(df, feature_columns)
         return self.labels_
 
-    def evaluate_clustering(self, df: pd.DataFrame, feature_columns: List[str]) -> Dict[str, float]:
-        """評估聚類質量
-
-        Args:
-            df: 輸入數據DataFrame
-            feature_columns: 特徵列名
-
-        Returns:
-            包含評估指標的字典
-
-        Raises:
-            ClusteringError: 當模型未訓練時
-        """
-        if self.labels_ is None or self._X_fitted is None:
-            raise ClusteringError("模型尚未訓練,無法評估", algorithm="Hierarchical")
-
-        X = self._X_fitted
-
-        metrics = {
-            'n_clusters': self.n_clusters,
-            'n_samples': len(self.labels_)
-        }
-
-        # 聚類分佈
-        unique, counts = np.unique(self.labels_, return_counts=True)
-        metrics['cluster_distribution'] = dict(zip(unique.tolist(), counts.tolist()))
-
-        # 輪廓係數
-        if self.n_clusters >= 2:
-            try:
-                metrics['silhouette_score'] = silhouette_score(X, self.labels_)
-            except Exception as e:
-                logger.warning(f"無法計算輪廓係數: {e}")
-                metrics['silhouette_score'] = None
-
-            try:
-                metrics['davies_bouldin_score'] = davies_bouldin_score(X, self.labels_)
-            except Exception as e:
-                logger.warning(f"無法計算Davies-Bouldin指數: {e}")
-                metrics['davies_bouldin_score'] = None
-        else:
-            metrics['silhouette_score'] = None
-            metrics['davies_bouldin_score'] = None
-
-        logger.info(f"聚類評估完成: {metrics}")
-        return metrics
-
-    def get_cluster_summary(self, df: pd.DataFrame, feature_columns: List[str]) -> pd.DataFrame:
-        """獲取每個聚類的統計摘要
-
-        Args:
-            df: 原始數據DataFrame
-            feature_columns: 特徵列名
-
-        Returns:
-            聚類摘要DataFrame
-
-        Raises:
-            ClusteringError: 當模型未訓練時
-        """
-        if self.labels_ is None:
-            raise ClusteringError("模型尚未訓練,無法生成摘要", algorithm="Hierarchical")
-
-        df_copy = df.copy()
-        df_copy['Cluster'] = self.labels_
-
-        summary_list = []
-        for cluster_id in range(self.n_clusters):
-            cluster_data = df_copy[df_copy['Cluster'] == cluster_id]
-
-            if len(cluster_data) == 0:
-                logger.warning(f"聚類 {cluster_id} 為空")
-                continue
-
-            summary = {
-                'Cluster': cluster_id,
-                'Size': len(cluster_data),
-                'Percentage': len(cluster_data) / len(df_copy) * 100
-            }
-
-            # 特徵統計
-            for col in feature_columns:
-                summary[f'{col}_mean'] = cluster_data[col].mean()
-                summary[f'{col}_std'] = cluster_data[col].std()
-
-            summary_list.append(summary)
-
-        summary_df = pd.DataFrame(summary_list)
-        logger.debug(f"生成聚類摘要: {len(summary_list)} 個聚類")
-
-        return summary_df
+    # 注意: evaluate_clustering() 和 get_cluster_summary() 現在繼承自 BaseClusterer
 
     def plot_dendrogram(
         self,

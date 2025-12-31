@@ -19,13 +19,13 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score, davies_bouldin_score
 from loguru import logger
 
+from .base import BaseClusterer
 from ..exceptions import ClusteringError, ValidationError, raise_if_empty_dataframe, raise_if_columns_missing, require_fitted
 
 
-class DBSCANClusterer:
+class DBSCANClusterer(BaseClusterer):
     """DBSCAN聚類分析器
 
     DBSCAN不需要預先指定聚類數量,而是基於密度來發現聚類。
@@ -67,6 +67,8 @@ class DBSCANClusterer:
         Raises:
             ClusteringError: 當參數無效時
         """
+        super().__init__(normalize=normalize, random_state=42)
+
         if eps <= 0:
             raise ClusteringError("eps必須大於0", algorithm="DBSCAN")
 
@@ -76,11 +78,8 @@ class DBSCANClusterer:
         self.eps = eps
         self.min_samples = min_samples
         self.metric = metric
-        self.normalize = normalize
 
         self.model: Optional[DBSCAN] = None
-        self.scaler: Optional[StandardScaler] = None
-        self.labels_: Optional[np.ndarray] = None
         self.n_clusters_: int = 0
         self.n_noise_: int = 0
 
@@ -105,6 +104,9 @@ class DBSCANClusterer:
 
         logger.info(f"開始DBSCAN聚類: 特徵={feature_columns}")
 
+        # 保存特徵列名
+        self.feature_columns = feature_columns
+
         # 提取特徵
         X = df[feature_columns].values
 
@@ -117,6 +119,9 @@ class DBSCANClusterer:
             self.scaler = StandardScaler()
             X = self.scaler.fit_transform(X)
             logger.debug("特徵已標準化")
+
+        # 保存訓練數據用於評估
+        self._X_fitted = X
 
         # 訓練DBSCAN
         try:
@@ -194,103 +199,8 @@ class DBSCANClusterer:
         self.fit(df, feature_columns)
         return self.labels_
 
-    def evaluate_clustering(self, df: pd.DataFrame, feature_columns: List[str]) -> Dict[str, float]:
-        """評估聚類質量
-
-        Args:
-            df: 輸入數據DataFrame
-            feature_columns: 特徵列名
-
-        Returns:
-            包含評估指標的字典
-
-        Raises:
-            ClusteringError: 當模型未訓練時
-        """
-        if self.labels_ is None:
-            raise ClusteringError("模型尚未訓練,無法評估", algorithm="DBSCAN")
-
-        X = df[feature_columns].values
-        if self.normalize and self.scaler is not None:
-            X = self.scaler.transform(X)
-
-        metrics = {
-            'n_clusters': self.n_clusters_,
-            'n_noise': self.n_noise_,
-            'noise_percentage': self.n_noise_ / len(self.labels_) * 100,
-            'n_samples': len(self.labels_)
-        }
-
-        # 只有當至少有2個聚類時才計算這些指標
-        if self.n_clusters_ >= 2:
-            # 過濾掉噪聲點進行評估
-            mask = self.labels_ != -1
-            if mask.sum() > 0:
-                try:
-                    metrics['silhouette_score'] = silhouette_score(
-                        X[mask],
-                        self.labels_[mask]
-                    )
-                except Exception as e:
-                    logger.warning(f"無法計算輪廓係數: {e}")
-                    metrics['silhouette_score'] = None
-
-                try:
-                    metrics['davies_bouldin_score'] = davies_bouldin_score(
-                        X[mask],
-                        self.labels_[mask]
-                    )
-                except Exception as e:
-                    logger.warning(f"無法計算Davies-Bouldin指數: {e}")
-                    metrics['davies_bouldin_score'] = None
-        else:
-            metrics['silhouette_score'] = None
-            metrics['davies_bouldin_score'] = None
-            logger.warning("聚類數量少於2個,跳過評估指標計算")
-
-        logger.info(f"聚類評估完成: {metrics}")
-        return metrics
-
-    def get_cluster_summary(self, df: pd.DataFrame, feature_columns: List[str]) -> pd.DataFrame:
-        """獲取每個聚類的統計摘要
-
-        Args:
-            df: 原始數據DataFrame
-            feature_columns: 特徵列名
-
-        Returns:
-            聚類摘要DataFrame
-
-        Raises:
-            ClusteringError: 當模型未訓練時
-        """
-        if self.labels_ is None:
-            raise ClusteringError("模型尚未訓練,無法生成摘要", algorithm="DBSCAN")
-
-        df_copy = df.copy()
-        df_copy['Cluster'] = self.labels_
-
-        summary_list = []
-        for cluster_id in sorted(df_copy['Cluster'].unique()):
-            cluster_data = df_copy[df_copy['Cluster'] == cluster_id][feature_columns]
-
-            summary = {
-                'Cluster': cluster_id if cluster_id != -1 else 'Noise',
-                'Size': len(cluster_data),
-                'Percentage': len(cluster_data) / len(df_copy) * 100
-            }
-
-            # 添加每個特徵的統計
-            for col in feature_columns:
-                summary[f'{col}_mean'] = cluster_data[col].mean()
-                summary[f'{col}_std'] = cluster_data[col].std()
-
-            summary_list.append(summary)
-
-        summary_df = pd.DataFrame(summary_list)
-        logger.debug(f"生成聚類摘要: {len(summary_list)} 個聚類(含噪聲)")
-
-        return summary_df
+    # 注意: evaluate_clustering() 和 get_cluster_summary() 現在繼承自 BaseClusterer
+    # 基類方法已經處理了 DBSCAN 的噪聲點 (-1) 情況
 
     @require_fitted
     def get_core_samples(self) -> np.ndarray:
