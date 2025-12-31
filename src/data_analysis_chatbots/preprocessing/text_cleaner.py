@@ -2,7 +2,7 @@
 
 import re
 import string
-from typing import List, Optional
+from typing import List, Optional, Set, Union
 import pandas as pd
 from loguru import logger
 
@@ -107,7 +107,16 @@ class TextCleaner:
 
         Returns:
             DataFrame with cleaned text
+
+        Raises:
+            ValueError: If df is None or not a pandas DataFrame, or if text_column not found
         """
+        if df is None:
+            raise ValueError("DataFrame cannot be None")
+
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError("df must be a pandas DataFrame")
+
         if text_column not in df.columns:
             raise ValueError(f"Column '{text_column}' not found in DataFrame")
 
@@ -132,19 +141,21 @@ class TextCleaner:
         """Get the number of characters in text."""
         return len(text)
 
-    def remove_stopwords(self, text: str, stopwords: List[str]) -> str:
+    def remove_stopwords(self, text: str, stopwords: Union[List[str], Set[str]]) -> str:
         """
         Remove stopwords from text.
 
         Args:
             text: Input text
-            stopwords: List of stopwords to remove
+            stopwords: List or set of stopwords to remove
 
         Returns:
             Text with stopwords removed
         """
+        # Convert to set for O(1) lookup if not already a set
+        stopwords_set = stopwords if isinstance(stopwords, set) else set(stopwords)
         words = text.split()
-        filtered_words = [word for word in words if word.lower() not in stopwords]
+        filtered_words = [word for word in words if word.lower() not in stopwords_set]
         return ' '.join(filtered_words)
 
     def __repr__(self):

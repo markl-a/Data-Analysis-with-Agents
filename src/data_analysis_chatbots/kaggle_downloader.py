@@ -113,6 +113,34 @@ class KaggleDatasetDownloader:
             print("請運行: pip install kaggle")
             return False
 
+    def _safe_extract_zip(self, zip_path: Path, destination: Path) -> None:
+        """Safely extract a ZIP file, preventing path traversal attacks.
+
+        Args:
+            zip_path: Path to the ZIP file
+            destination: Destination directory
+
+        Raises:
+            ValueError: If a file would be extracted outside the destination
+        """
+        import zipfile
+
+        destination = destination.resolve()
+
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            for member in zip_ref.namelist():
+                # Get the full path where the file would be extracted
+                member_path = (destination / member).resolve()
+
+                # Check if the resolved path is within the destination
+                if not str(member_path).startswith(str(destination)):
+                    raise ValueError(
+                        f"Attempted path traversal in ZIP file: {member}"
+                    )
+
+            # Safe to extract all files
+            zip_ref.extractall(destination)
+
     def download_dataset(
         self,
         dataset_name: str,
@@ -198,7 +226,7 @@ class KaggleDatasetDownloader:
         except subprocess.TimeoutExpired:
             print("❌ 下載超時（10分鐘）")
             raise RuntimeError("下載超時")
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, ValueError, RuntimeError) as e:
             print(f"❌ 下載出錯: {e}")
             raise
 
@@ -251,11 +279,9 @@ class KaggleDatasetDownloader:
                 logger.success(f"✅ 下載完成: {destination}")
 
                 # 解壓所有 zip 文件
-                import zipfile
                 for zip_file in destination.glob('*.zip'):
                     logger.info(f"📦 解壓: {zip_file.name}")
-                    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-                        zip_ref.extractall(destination)
+                    self._safe_extract_zip(zip_file, destination)
                     zip_file.unlink()  # 刪除 zip 文件
 
                 return destination
@@ -264,7 +290,7 @@ class KaggleDatasetDownloader:
                 logger.error(f"❌ 下載失敗: {error_msg}")
                 raise RuntimeError(f"下載失敗: {error_msg}")
 
-        except Exception as e:
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, ValueError, RuntimeError) as e:
             logger.error(f"❌ 下載出錯: {e}")
             raise
 
@@ -327,7 +353,7 @@ class KaggleDatasetDownloader:
                 logger.error(f"❌ 搜索失敗: {result.stderr}")
                 return []
 
-        except Exception as e:
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, ValueError) as e:
             logger.error(f"❌ 搜索出錯: {e}")
             return []
 

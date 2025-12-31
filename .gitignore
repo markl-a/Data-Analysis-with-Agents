@@ -48,6 +48,8 @@ data/processed/*.parquet
 data/outputs/*.csv
 data/outputs/*.json
 data/outputs/*.html
+data/outputs/*.png
+data/outputs/*.txt
 *.zip
 *.tar.gz
 

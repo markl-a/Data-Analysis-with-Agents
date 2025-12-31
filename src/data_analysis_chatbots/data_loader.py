@@ -1,12 +1,83 @@
-"""Data loader for various datasets used in the project."""
+"""Data loader for various datasets used in the project.
+
+提供安全的數據加載功能，包括：
+- 文件類型驗證
+- 文件大小限制
+- 路徑安全檢查
+"""
 
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Set
 from loguru import logger
 
 from .config_loader import ConfigLoader
 from .utils import get_project_root, ensure_dir
+from .exceptions import ValidationError
+
+
+# 安全配置
+ALLOWED_EXTENSIONS: Set[str] = {'.csv', '.xlsx', '.xls', '.json', '.parquet'}
+MAX_FILE_SIZE_MB: int = 500  # 最大文件大小（MB）
+
+
+def validate_data_file(
+    file_path: Path,
+    allowed_extensions: Optional[Set[str]] = None,
+    max_size_mb: Optional[int] = None
+) -> None:
+    """驗證數據文件的安全性
+
+    Args:
+        file_path: 文件路徑
+        allowed_extensions: 允許的文件擴展名集合
+        max_size_mb: 最大文件大小（MB）
+
+    Raises:
+        ValidationError: 當文件驗證失敗時
+        FileNotFoundError: 當文件不存在時
+    """
+    file_path = Path(file_path)
+
+    if allowed_extensions is None:
+        allowed_extensions = ALLOWED_EXTENSIONS
+    if max_size_mb is None:
+        max_size_mb = MAX_FILE_SIZE_MB
+
+    # 檢查文件是否存在
+    if not file_path.exists():
+        raise FileNotFoundError(f"文件不存在: {file_path}")
+
+    # 檢查是否是文件（而非目錄）
+    if not file_path.is_file():
+        raise ValidationError(f"路徑不是文件: {file_path}")
+
+    # 檢查文件擴展名
+    extension = file_path.suffix.lower()
+    if extension not in allowed_extensions:
+        raise ValidationError(
+            f"不支持的文件類型: {extension}。"
+            f"允許的類型: {', '.join(allowed_extensions)}"
+        )
+
+    # 檢查文件大小
+    file_size_mb = file_path.stat().st_size / (1024 * 1024)
+    if file_size_mb > max_size_mb:
+        raise ValidationError(
+            f"文件過大: {file_size_mb:.2f} MB。"
+            f"最大允許: {max_size_mb} MB"
+        )
+
+    # 檢查符號鏈接（防止路徑遍歷）
+    try:
+        resolved_path = file_path.resolve(strict=True)
+        # 確保解析後的路徑仍在預期目錄內
+        if not str(resolved_path).startswith(str(file_path.parent.resolve())):
+            raise ValidationError(f"潛在的路徑遍歷攻擊: {file_path}")
+    except OSError as e:
+        raise ValidationError(f"無法解析路徑: {file_path}. 錯誤: {e}")
+
+    logger.debug(f"文件驗證通過: {file_path} ({file_size_mb:.2f} MB)")
 
 
 class DataLoader:
@@ -65,6 +136,13 @@ class DataLoader:
                 logger.warning(f"Dataset file not found: {file_path}")
                 logger.info(f"To download datasets, run: python -m data_analysis_chatbots.data_downloader")
                 raise FileNotFoundError(f"Dataset file not found: {file_path}")
+
+            # 驗證文件安全性
+            try:
+                validate_data_file(file_path)
+            except ValidationError as e:
+                logger.error(f"File validation failed: {e}")
+                raise
 
             # Load the data
             logger.info(f"Loading dataset: {dataset_name} from {file_path}")

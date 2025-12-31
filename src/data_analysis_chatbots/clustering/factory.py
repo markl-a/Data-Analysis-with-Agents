@@ -26,7 +26,21 @@ class ClustererFactory:
 
     @classmethod
     def create(cls, algorithm: str, **kwargs) -> BaseClusterer:
-        """創建聚類器實例"""
+        """創建聚類器實例
+
+        Args:
+            algorithm: 聚類算法名稱 (kmeans, dbscan, gmm, hierarchical)
+            **kwargs: 傳遞給聚類器的參數
+
+        Returns:
+            BaseClusterer: 聚類器實例
+
+        Raises:
+            ValueError: 如果算法名稱無效
+        """
+        if not algorithm or not isinstance(algorithm, str):
+            raise ValueError("Algorithm name must be a non-empty string")
+
         cls._ensure_registry()
 
         algorithm = algorithm.lower()

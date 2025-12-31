@@ -1,14 +1,18 @@
 """Performance monitoring decorators and utilities.
 
 This module provides decorators for monitoring function performance,
-including execution time, memory usage, and retry logic with exponential backoff.
+including execution time, memory usage, retry logic with exponential backoff,
+and caching for performance optimization.
 """
 
 import functools
 import time
-from typing import Callable, TypeVar, ParamSpec, Any, Optional, Type, Tuple
+import hashlib
+from typing import Callable, TypeVar, ParamSpec, Any, Optional, Type, Tuple, Dict
 from loguru import logger
 import traceback
+from collections import OrderedDict
+from threading import Lock
 
 # Type variables for generic decorators
 P = ParamSpec('P')
@@ -240,6 +244,217 @@ def retry(
             return func(*args, **kwargs)  # type: ignore
 
         return wrapper
+
+    return decorator
+
+
+class LRUCache:
+    """Thread-safe LRU (Least Recently Used) Cache implementation.
+
+    This cache automatically evicts the least recently used items when
+    the maximum size is reached.
+
+    Attributes:
+        maxsize: Maximum number of items to store
+        ttl: Time-to-live in seconds (optional)
+
+    Example:
+        >>> cache = LRUCache(maxsize=100, ttl=300)
+        >>> cache.set("key1", "value1")
+        >>> value = cache.get("key1")
+    """
+
+    def __init__(self, maxsize: int = 128, ttl: Optional[float] = None):
+        """Initialize the LRU cache.
+
+        Args:
+            maxsize: Maximum number of items (default: 128)
+            ttl: Time-to-live in seconds (None = no expiration)
+        """
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self._cache: OrderedDict = OrderedDict()
+        self._timestamps: Dict[str, float] = {}
+        self._lock = Lock()
+        self._hits = 0
+        self._misses = 0
+
+    def _make_key(self, *args, **kwargs) -> str:
+        """Create a hashable key from arguments."""
+        key_parts = [str(arg) for arg in args]
+        key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
+        key_string = ":".join(key_parts)
+        return hashlib.md5(key_string.encode()).hexdigest()
+
+    def get(self, key: str) -> Optional[Any]:
+        """Get a value from the cache.
+
+        Args:
+            key: The cache key
+
+        Returns:
+            Cached value or None if not found/expired
+        """
+        with self._lock:
+            if key not in self._cache:
+                self._misses += 1
+                return None
+
+            # Check TTL
+            if self.ttl is not None:
+                if time.time() - self._timestamps.get(key, 0) > self.ttl:
+                    del self._cache[key]
+                    del self._timestamps[key]
+                    self._misses += 1
+                    return None
+
+            # Move to end (most recently used)
+            self._cache.move_to_end(key)
+            self._hits += 1
+            return self._cache[key]
+
+    def set(self, key: str, value: Any) -> None:
+        """Set a value in the cache.
+
+        Args:
+            key: The cache key
+            value: The value to cache
+        """
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+            else:
+                if len(self._cache) >= self.maxsize:
+                    # Remove oldest item
+                    oldest_key = next(iter(self._cache))
+                    del self._cache[oldest_key]
+                    self._timestamps.pop(oldest_key, None)
+
+            self._cache[key] = value
+            self._timestamps[key] = time.time()
+
+    def clear(self) -> None:
+        """Clear all cached items."""
+        with self._lock:
+            self._cache.clear()
+            self._timestamps.clear()
+            self._hits = 0
+            self._misses = 0
+
+    def stats(self) -> Dict[str, Any]:
+        """Get cache statistics.
+
+        Returns:
+            Dictionary with cache statistics
+        """
+        with self._lock:
+            total = self._hits + self._misses
+            hit_rate = self._hits / total if total > 0 else 0
+            return {
+                'size': len(self._cache),
+                'maxsize': self.maxsize,
+                'hits': self._hits,
+                'misses': self._misses,
+                'hit_rate': hit_rate
+            }
+
+
+def memoize(
+    maxsize: int = 128,
+    ttl: Optional[float] = None,
+    key_func: Optional[Callable[..., str]] = None
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator to cache function results with LRU eviction policy.
+
+    This decorator caches the results of function calls based on their
+    arguments. Useful for expensive computations that are called repeatedly
+    with the same inputs.
+
+    Args:
+        maxsize: Maximum cache size (default: 128)
+        ttl: Time-to-live in seconds (None = no expiration)
+        key_func: Custom function to generate cache keys
+
+    Returns:
+        Decorated function with caching
+
+    Example:
+        >>> @memoize(maxsize=100, ttl=300)
+        ... def expensive_computation(n: int) -> int:
+        ...     time.sleep(1)  # Simulate expensive work
+        ...     return n ** 2
+
+        >>> result1 = expensive_computation(5)  # Takes 1 second
+        >>> result2 = expensive_computation(5)  # Returns instantly from cache
+    """
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        cache = LRUCache(maxsize=maxsize, ttl=ttl)
+
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            # Generate cache key
+            if key_func:
+                key = key_func(*args, **kwargs)
+            else:
+                key = cache._make_key(*args, **kwargs)
+
+            # Try to get from cache
+            cached_result = cache.get(key)
+            if cached_result is not None:
+                logger.debug(f"Cache hit for {func.__name__}")
+                return cached_result
+
+            # Compute result
+            result = func(*args, **kwargs)
+            cache.set(key, result)
+            logger.debug(f"Cache miss for {func.__name__}, result cached")
+
+            return result
+
+        # Attach cache to wrapper for external access
+        wrapper.cache = cache  # type: ignore
+        wrapper.cache_clear = cache.clear  # type: ignore
+        wrapper.cache_stats = cache.stats  # type: ignore
+
+        return wrapper
+
+    return decorator
+
+
+def cached_property_with_ttl(ttl: float = 300.0):
+    """Cached property decorator with time-to-live.
+
+    Similar to Python's @property but caches the computed value
+    for a specified time period.
+
+    Args:
+        ttl: Time-to-live in seconds (default: 300)
+
+    Returns:
+        Property decorator with caching
+
+    Example:
+        >>> class DataProcessor:
+        ...     @cached_property_with_ttl(ttl=60)
+        ...     def expensive_data(self):
+        ...         return compute_something()
+    """
+    def decorator(func: Callable) -> property:
+        attr_name = f'_cached_{func.__name__}'
+        timestamp_attr = f'_cached_ts_{func.__name__}'
+
+        @functools.wraps(func)
+        def wrapper(self):
+            now = time.time()
+            cached_time = getattr(self, timestamp_attr, 0)
+
+            if now - cached_time > ttl or not hasattr(self, attr_name):
+                setattr(self, attr_name, func(self))
+                setattr(self, timestamp_attr, now)
+
+            return getattr(self, attr_name)
+
+        return property(wrapper)
 
     return decorator
 

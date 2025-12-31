@@ -1,6 +1,6 @@
 """Marketing campaign management and customer targeting."""
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
