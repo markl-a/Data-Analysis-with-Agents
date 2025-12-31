@@ -141,7 +141,7 @@ class DataDownloader:
                 logger.error(f"Error: {result.stderr}")
                 return False
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, KeyError, ValueError, FileNotFoundError) as e:
             logger.error(f"Error downloading dataset {dataset_name}: {e}")
             return False
 
