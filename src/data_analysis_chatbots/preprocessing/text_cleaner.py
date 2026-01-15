@@ -133,6 +133,25 @@ class TextCleaner:
 
         return df
 
+    def clean_dataframe_column(
+        self,
+        df: pd.DataFrame,
+        column: str,
+        output_column: Optional[str] = None
+    ) -> pd.DataFrame:
+        """
+        Clean text in a DataFrame column (alias for clean_dataframe).
+
+        Args:
+            df: Input DataFrame
+            column: Name of the column containing text
+            output_column: Name for the output column. If None, overwrites input column.
+
+        Returns:
+            DataFrame with cleaned text
+        """
+        return self.clean_dataframe(df, column, output_column)
+
     def get_word_count(self, text: str) -> int:
         """Get the number of words in text."""
         return len(text.split())

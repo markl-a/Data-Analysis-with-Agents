@@ -15,7 +15,7 @@ GMM (Gaussian Mixture Model) 是一種基於概率的軟聚類算法。
 - 客戶分群(軟分群)
 """
 
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
@@ -242,38 +242,65 @@ class GMMClusterer(BaseClusterer):
 
     def evaluate_clustering(
         self,
-        X: Optional[np.ndarray] = None,
-        labels: Optional[np.ndarray] = None
-    ) -> Dict[str, float]:
-        """評估聚類質量（擴展基類方法，添加 GMM 特有指標）
-
-        包含 BIC、AIC、輪廓係數等多個指標
+        df: pd.DataFrame,
+        feature_columns: List[str]
+    ) -> Dict[str, Any]:
+        """評估 GMM 聚類質量
 
         Args:
-            X: 特徵數據（默認使用 self._X_fitted）
-            labels: 聚類標籤（默認使用 self.labels_）
+            df: 輸入數據 DataFrame
+            feature_columns: 特徵列名
 
         Returns:
-            包含評估指標的字典
+            包含評估指標的字典，包括：
+            - n_clusters: 聚類數量
+            - n_samples: 樣本數量
+            - bic: 貝葉斯信息準則
+            - aic: 赤池信息準則
+            - silhouette_score: 輪廓係數
+            - converged: 是否收斂
+            - n_iterations: 迭代次數
 
         Raises:
             ClusteringError: 當模型未訓練時
         """
-        # 獲取基類的評估指標
-        metrics = super().evaluate_clustering(X, labels)
+        from sklearn.metrics import silhouette_score, davies_bouldin_score
+        from ..exceptions import ClusteringError
 
-        # 添加 GMM 特有的指標
-        if self.model is not None and self._X_fitted is not None:
-            X_data = X if X is not None else self._X_fitted
-            metrics.update({
-                'bic': float(self.model.bic(X_data)),
-                'aic': float(self.model.aic(X_data)),
-                'log_likelihood': float(self.model.score(X_data) * len(X_data)),
-                'converged': self.model.converged_,
-                'n_iterations': self.model.n_iter_
-            })
+        if self.model is None or self.labels_ is None:
+            raise ClusteringError("模型尚未訓練", algorithm="GMM")
 
-        logger.info(f"聚類評估完成: BIC={metrics.get('bic', 'N/A')}, AIC={metrics.get('aic', 'N/A')}")
+        X_data = self._X_fitted if self._X_fitted is not None else df[feature_columns].values
+        n_samples = len(self.labels_)
+
+        metrics: Dict[str, Any] = {
+            'n_clusters': self.n_components,
+            'n_samples': n_samples,
+            'bic': float(self.model.bic(X_data)),
+            'aic': float(self.model.aic(X_data)),
+            'log_likelihood': float(self.model.score(X_data) * n_samples),
+            'converged': self.model.converged_,
+            'n_iterations': self.model.n_iter_
+        }
+
+        # 計算評估指標
+        if self.n_components >= 2:
+            try:
+                metrics['silhouette_score'] = float(silhouette_score(X_data, self.labels_))
+            except Exception as e:
+                logger.warning(f"無法計算輪廓係數: {e}")
+                metrics['silhouette_score'] = None
+
+            try:
+                metrics['davies_bouldin_score'] = float(davies_bouldin_score(X_data, self.labels_))
+            except Exception as e:
+                logger.warning(f"無法計算 Davies-Bouldin 指數: {e}")
+                metrics['davies_bouldin_score'] = None
+        else:
+            metrics['silhouette_score'] = None
+            metrics['davies_bouldin_score'] = None
+
+        logger.info(f"GMM 評估完成: BIC={metrics['bic']:.2f}, AIC={metrics['aic']:.2f}")
         return metrics
 
     def get_cluster_summary(

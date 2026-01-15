@@ -14,7 +14,7 @@ DBSCAN (Density-Based Spatial Clustering of Applications with Noise) 是一種�
 - 客戶行為模式發現
 """
 
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 import numpy as np
 import pandas as pd
 from sklearn.cluster import DBSCAN
@@ -199,8 +199,67 @@ class DBSCANClusterer(BaseClusterer):
         self.fit(df, feature_columns)
         return self.labels_
 
-    # 注意: evaluate_clustering() 和 get_cluster_summary() 現在繼承自 BaseClusterer
-    # 基類方法已經處理了 DBSCAN 的噪聲點 (-1) 情況
+    @require_fitted
+    def evaluate_clustering(
+        self,
+        df: pd.DataFrame,
+        feature_columns: List[str]
+    ) -> Dict[str, Any]:
+        """評估 DBSCAN 聚類質量
+
+        Args:
+            df: 輸入數據 DataFrame
+            feature_columns: 特徵列名
+
+        Returns:
+            包含評估指標的字典，包括：
+            - n_clusters: 聚類數量
+            - n_samples: 樣本數量
+            - n_noise: 噪聲點數量
+            - noise_percentage: 噪聲點百分比
+            - silhouette_score: 輪廓係數（如適用）
+            - davies_bouldin_score: DB 指數（如適用）
+
+        Raises:
+            ClusteringError: 當模型未訓練時
+        """
+        from sklearn.metrics import silhouette_score, davies_bouldin_score
+
+        n_noise = int((self.labels_ == -1).sum())
+        n_samples = len(self.labels_)
+
+        metrics: Dict[str, Any] = {
+            'n_clusters': self.n_clusters_,
+            'n_samples': n_samples,
+            'n_noise': n_noise,
+            'noise_percentage': round(n_noise / n_samples * 100, 2) if n_samples > 0 else 0
+        }
+
+        # 只有當有足夠的非噪聲聚類時才計算評估指標
+        valid_mask = self.labels_ != -1
+        n_valid_clusters = len(set(self.labels_[valid_mask]))
+
+        if n_valid_clusters >= 2 and valid_mask.sum() > n_valid_clusters:
+            X = self._X_fitted[valid_mask] if self._X_fitted is not None else df[feature_columns].values[valid_mask]
+            labels_valid = self.labels_[valid_mask]
+
+            try:
+                metrics['silhouette_score'] = float(silhouette_score(X, labels_valid))
+            except Exception as e:
+                logger.warning(f"無法計算輪廓係數: {e}")
+                metrics['silhouette_score'] = None
+
+            try:
+                metrics['davies_bouldin_score'] = float(davies_bouldin_score(X, labels_valid))
+            except Exception as e:
+                logger.warning(f"無法計算 Davies-Bouldin 指數: {e}")
+                metrics['davies_bouldin_score'] = None
+        else:
+            metrics['silhouette_score'] = None
+            metrics['davies_bouldin_score'] = None
+
+        logger.info(f"DBSCAN 評估完成: {self.n_clusters_} 聚類, {n_noise} 噪聲點")
+        return metrics
 
     @require_fitted
     def get_core_samples(self) -> np.ndarray:

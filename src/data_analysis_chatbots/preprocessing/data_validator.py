@@ -20,39 +20,24 @@ class DataValidator:
         self.df = df
         self.validation_results = {}
 
-    def check_missing_values(self) -> Dict[str, Any]:
+    def check_missing_values(self) -> Dict[str, int]:
         """
         Check for missing values in the DataFrame.
 
         Returns:
-            Dictionary with missing value statistics
+            Dictionary mapping column names to missing value counts
         """
         logger.info("Checking for missing values...")
 
         missing_count = self.df.isnull().sum()
-        missing_percent = (missing_count / len(self.df) * 100).round(2)
-
-        results = {
-            'total_rows': len(self.df),
-            'total_columns': len(self.df.columns),
-            'missing_by_column': {
-                col: {
-                    'count': int(count),
-                    'percentage': float(missing_percent[col])
-                }
-                for col, count in missing_count.items()
-                if count > 0
-            },
-            'columns_with_missing': list(missing_count[missing_count > 0].index),
-            'total_missing_cells': int(missing_count.sum())
-        }
+        results = {col: int(count) for col, count in missing_count.items()}
 
         self.validation_results['missing_values'] = results
-        logger.info(f"Found {results['total_missing_cells']} missing values")
+        logger.info(f"Found {sum(results.values())} missing values")
 
         return results
 
-    def check_duplicates(self, subset: Optional[List[str]] = None) -> Dict[str, Any]:
+    def check_duplicates(self, subset: Optional[List[str]] = None) -> int:
         """
         Check for duplicate rows.
 
@@ -60,7 +45,7 @@ class DataValidator:
             subset: List of columns to check for duplicates. If None, checks all columns.
 
         Returns:
-            Dictionary with duplicate statistics
+            Number of duplicate rows
         """
         logger.info("Checking for duplicates...")
 
@@ -69,44 +54,28 @@ class DataValidator:
         else:
             duplicates = self.df.duplicated(keep='first')
 
-        duplicate_count = duplicates.sum()
-        duplicate_rows = self.df[duplicates]
+        duplicate_count = int(duplicates.sum())
 
-        results = {
-            'duplicate_count': int(duplicate_count),
-            'duplicate_percentage': float((duplicate_count / len(self.df) * 100).round(2)),
-            'checked_columns': subset if subset else 'all',
-            'has_duplicates': bool(duplicate_count > 0)
-        }
-
-        self.validation_results['duplicates'] = results
+        self.validation_results['duplicates'] = duplicate_count
         logger.info(f"Found {duplicate_count} duplicate rows")
 
-        return results
+        return duplicate_count
 
-    def check_data_types(self) -> Dict[str, Any]:
+    def check_data_types(self) -> Dict[str, str]:
         """
         Check data types of columns.
 
         Returns:
-            Dictionary with data type information
+            Dictionary mapping column names to their data types
         """
         logger.info("Checking data types...")
 
         dtypes = self.df.dtypes.astype(str).to_dict()
 
-        results = {
-            'data_types': dtypes,
-            'numeric_columns': list(self.df.select_dtypes(include=[np.number]).columns),
-            'categorical_columns': list(self.df.select_dtypes(include=['object']).columns),
-            'datetime_columns': list(self.df.select_dtypes(include=['datetime64']).columns)
-        }
+        self.validation_results['data_types'] = dtypes
+        logger.info(f"Checked data types for {len(dtypes)} columns")
 
-        self.validation_results['data_types'] = results
-        logger.info(f"Found {len(results['numeric_columns'])} numeric, "
-                   f"{len(results['categorical_columns'])} categorical columns")
-
-        return results
+        return dtypes
 
     def check_value_ranges(self, column: str) -> Dict[str, Any]:
         """
@@ -223,37 +192,147 @@ class DataValidator:
         Generate a comprehensive data quality report.
 
         Returns:
-            Dictionary with complete validation results
+            Dictionary with total_rows, total_columns, missing_values, duplicate_rows
         """
         logger.info("Generating comprehensive data quality report...")
 
-        # Run all checks
-        self.check_missing_values()
-        self.check_duplicates()
+        missing_values = self.check_missing_values()
+        duplicate_rows = self.check_duplicates()
         self.check_data_types()
 
-        # Check outliers for numeric columns
-        numeric_columns = self.df.select_dtypes(include=[np.number]).columns
-        outlier_results = {}
-        for col in numeric_columns:
-            try:
-                outlier_results[col] = self.check_outliers(col)
-            except Exception as e:
-                logger.warning(f"Could not check outliers for {col}: {e}")
-
-        self.validation_results['outliers'] = outlier_results
-
-        # Add summary
-        self.validation_results['summary'] = {
+        results = {
             'total_rows': len(self.df),
             'total_columns': len(self.df.columns),
-            'memory_usage_mb': float(self.df.memory_usage(deep=True).sum() / 1024**2),
-            'validation_timestamp': pd.Timestamp.now().isoformat()
+            'missing_values': missing_values,
+            'duplicate_rows': duplicate_rows
         }
 
+        self.validation_results = results
         logger.success("Data quality report generated successfully")
 
-        return self.validation_results
+        return results
+
+    def get_summary_statistics(self) -> pd.DataFrame:
+        """
+        Get summary statistics for numeric columns.
+
+        Returns:
+            DataFrame with summary statistics
+        """
+        logger.info("Getting summary statistics...")
+        return self.df.describe()
+
+    def validate_column_exists(self, column: str) -> bool:
+        """
+        Check if a column exists in the DataFrame.
+
+        Args:
+            column: Column name to check
+
+        Returns:
+            True if column exists, False otherwise
+        """
+        return column in self.df.columns
+
+    def validate_no_nulls(self, column: str) -> bool:
+        """
+        Check if a column has no null values.
+
+        Args:
+            column: Column name to check
+
+        Returns:
+            True if no nulls, False otherwise
+        """
+        if column not in self.df.columns:
+            return False
+        return self.df[column].isnull().sum() == 0
+
+    def validate_numeric_range(
+        self,
+        column: str,
+        min_value: Optional[float] = None,
+        max_value: Optional[float] = None
+    ) -> bool:
+        """
+        Check if all values in a column are within a specified range.
+
+        Args:
+            column: Column name to check
+            min_value: Minimum allowed value (optional)
+            max_value: Maximum allowed value (optional)
+
+        Returns:
+            True if all values are within range, False otherwise
+        """
+        if column not in self.df.columns:
+            return False
+
+        if not pd.api.types.is_numeric_dtype(self.df[column]):
+            return False
+
+        values = self.df[column].dropna()
+
+        if min_value is not None and values.min() < min_value:
+            return False
+
+        if max_value is not None and values.max() > max_value:
+            return False
+
+        return True
+
+    def fix_missing_values(
+        self,
+        strategy: str = 'drop',
+        fill_value: Any = None
+    ) -> pd.DataFrame:
+        """
+        Fix missing values in the DataFrame.
+
+        Args:
+            strategy: Strategy to use ('drop' or 'fill')
+            fill_value: Value to fill with when strategy is 'fill'
+
+        Returns:
+            DataFrame with missing values fixed
+        """
+        logger.info(f"Fixing missing values with strategy: {strategy}")
+
+        if strategy == 'drop':
+            result = self.df.dropna()
+        elif strategy == 'fill':
+            if fill_value is not None:
+                # Fill numeric columns with fill_value, leave others
+                result = self.df.copy()
+                numeric_cols = result.select_dtypes(include=[np.number]).columns
+                result[numeric_cols] = result[numeric_cols].fillna(fill_value)
+            else:
+                result = self.df.fillna(method='ffill').fillna(method='bfill')
+        else:
+            raise ValueError(f"Unknown strategy: {strategy}")
+
+        logger.info(f"Fixed missing values. Rows: {len(self.df)} -> {len(result)}")
+        return result
+
+    def remove_duplicates(self, subset: Optional[List[str]] = None) -> pd.DataFrame:
+        """
+        Remove duplicate rows from the DataFrame.
+
+        Args:
+            subset: List of columns to consider for duplicates
+
+        Returns:
+            DataFrame with duplicates removed
+        """
+        logger.info("Removing duplicates...")
+
+        if subset:
+            result = self.df.drop_duplicates(subset=subset, keep='first')
+        else:
+            result = self.df.drop_duplicates(keep='first')
+
+        logger.info(f"Removed duplicates. Rows: {len(self.df)} -> {len(result)}")
+        return result
 
     def print_report(self):
         """Print a formatted validation report."""

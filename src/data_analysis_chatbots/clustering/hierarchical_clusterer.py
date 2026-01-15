@@ -15,7 +15,7 @@ Hierarchical Clustering 是一種構建聚類層次結構的算法。
 - 小到中等規模數據集
 """
 
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
@@ -233,7 +233,65 @@ class HierarchicalClusterer(BaseClusterer):
         self.fit(df, feature_columns)
         return self.labels_
 
-    # 注意: evaluate_clustering() 和 get_cluster_summary() 現在繼承自 BaseClusterer
+    def evaluate_clustering(
+        self,
+        df: pd.DataFrame,
+        feature_columns: List[str]
+    ) -> Dict[str, Any]:
+        """評估層次聚類質量
+
+        Args:
+            df: 輸入數據 DataFrame
+            feature_columns: 特徵列名
+
+        Returns:
+            包含評估指標的字典，包括：
+            - n_clusters: 聚類數量
+            - n_samples: 樣本數量
+            - silhouette_score: 輪廓係數
+            - davies_bouldin_score: DB 指數
+            - cluster_distribution: 聚類分布
+
+        Raises:
+            ClusteringError: 當模型未訓練時
+        """
+        from sklearn.metrics import silhouette_score, davies_bouldin_score
+
+        if self.model is None or self.labels_ is None:
+            raise ClusteringError("模型尚未訓練", algorithm="Hierarchical")
+
+        X_data = self._X_fitted if self._X_fitted is not None else df[feature_columns].values
+        n_samples = len(self.labels_)
+
+        # 計算聚類分布
+        unique, counts = np.unique(self.labels_, return_counts=True)
+        cluster_distribution = {int(k): int(v) for k, v in zip(unique, counts)}
+
+        metrics: Dict[str, Any] = {
+            'n_clusters': self.n_clusters,
+            'n_samples': n_samples,
+            'cluster_distribution': cluster_distribution
+        }
+
+        # 計算評估指標
+        if self.n_clusters >= 2:
+            try:
+                metrics['silhouette_score'] = float(silhouette_score(X_data, self.labels_))
+            except Exception as e:
+                logger.warning(f"無法計算輪廓係數: {e}")
+                metrics['silhouette_score'] = None
+
+            try:
+                metrics['davies_bouldin_score'] = float(davies_bouldin_score(X_data, self.labels_))
+            except Exception as e:
+                logger.warning(f"無法計算 Davies-Bouldin 指數: {e}")
+                metrics['davies_bouldin_score'] = None
+        else:
+            metrics['silhouette_score'] = None
+            metrics['davies_bouldin_score'] = None
+
+        logger.info(f"層次聚類評估完成: {self.n_clusters} 聚類")
+        return metrics
 
     def plot_dendrogram(
         self,

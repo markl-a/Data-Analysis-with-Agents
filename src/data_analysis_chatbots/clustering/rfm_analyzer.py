@@ -55,15 +55,13 @@ class RFMAnalyzer:
         """
         logger.info("Calculating RFM metrics...")
 
-        # Calculate Recency, Frequency, and Monetary
-        rfm = self.df.groupby(self.customer_id_col).agg({
-            self.date_col: lambda x: (self.reference_date - x.max()).days,  # Recency
-            self.customer_id_col: 'count',  # Frequency (transaction count)
-            self.amount_col: 'sum'  # Monetary
-        }).reset_index()
-
-        # Rename columns
-        rfm.columns = [self.customer_id_col, 'Recency', 'Frequency', 'Monetary']
+        # Calculate Recency, Frequency, and Monetary using separate aggregations
+        # to avoid column name conflicts
+        rfm = self.df.groupby(self.customer_id_col).agg(
+            Recency=(self.date_col, lambda x: (self.reference_date - x.max()).days),
+            Frequency=(self.date_col, 'count'),  # Count transactions per customer
+            Monetary=(self.amount_col, 'sum')
+        ).reset_index()
 
         # Ensure Monetary is positive
         rfm = rfm[rfm['Monetary'] > 0]
