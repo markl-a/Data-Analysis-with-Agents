@@ -67,7 +67,7 @@ jobs:
 
     - name: Upload coverage reports as artifacts
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
         path: |
@@ -136,7 +136,7 @@ jobs:
 
     - name: Upload quality check results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: code-quality-results
         path: |
@@ -179,7 +179,7 @@ jobs:
       run: twine check dist/*
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: dist-packages
         path: dist/
