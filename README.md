@@ -5,6 +5,30 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Powered by phantom-mesh](https://img.shields.io/badge/powered%20by-phantom--mesh-purple)](https://github.com/markl-a/phantom-mesh)
+
+---
+
+## 🔗 phantom-mesh ecosystem
+
+This repository is the **data-science & analytics layer** of the
+[phantom-mesh](https://github.com/markl-a/phantom-mesh) ecosystem — a
+self-hostable multi-agent AI runtime.
+
+**Two roles in the ecosystem:**
+
+1. **Stand-alone**: end-to-end customer analytics framework as documented
+   below — clustering algorithms (K-Means, DBSCAN, GMM, Hierarchical), CLV
+   prediction, RFM segmentation, AI-assisted interpretation.
+2. **Phantom telemetry analysis**: the same algorithms applied to phantom-mesh's
+   own agent execution logs — clustering 10K+ executions to surface
+   prompt-failure patterns, provider-specific performance, and cost outliers.
+   See `examples/phantom-telemetry/` (in progress).
+
+The same statistical machinery powers both: customer behaviour and AI agent
+behaviour are both "many discrete events with hidden structure" problems.
+
+---
 
 ## 🎯 專案概述
 
