@@ -12,6 +12,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Use bash on every runner including Windows. The default Windows shell
+# (pwsh) doesn't understand bash's backslash line-continuation in our
+# multi-line `pytest tests/ ... \` invocations — pwsh parses the `--`
+# of `--cov=...` as a unary operator and the whole step dies with
+# "Missing expression after unary operator '--'". Forcing bash makes
+# the same script run identically on Linux / macOS / Windows.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
