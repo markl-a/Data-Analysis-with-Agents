@@ -36,29 +36,14 @@ behaviour are both "many discrete events with hidden structure" problems.
 
 ### ✨ 核心特色
 
-- 🤖 **AI輔助分析** - 整合ChatGPT、Gemini、Claude等AI工具進行智能分析
-- 📈 **完整分析流程** - 從數據清洗到策略制定的端到端解決方案
-- 🎨 **豐富可視化** - 多樣化的圖表和交互式儀表板
-- 🔧 **模塊化設計** - 易於擴展和定制的架構
-- 📚 **實戰案例** - 5個真實數據集的完整分析範例
-- 🏆 **2000個Kaggle解決方案** - 涵蓋機器學習17個領域的完整實現（100%文檔覆蓋）
-- 🚀 **最佳實踐** - 採用2024-2025年行業最新標準
-- 🎯 **多種聚類算法** - K-Means, DBSCAN, GMM, Hierarchical完整實現
-- 🛡️ **強大錯誤處理** - 自定義異常系統提供清晰的錯誤信息
-- ⚡ **一鍵初始化** - 自動創建專案目錄結構
-- 🔽 **Kaggle數據集下載** - 支持50+熱門數據集一鍵下載
+- **客戶分群演算法** — K-Means、DBSCAN、GMM、Hierarchical 四種，可直接 import 使用
+- **RFM + CLV 預測** — 經典 RFM 與機器學習混合的客戶終身價值預測
+- **端到端範例** — 5 個 jupyter notebook 案例（mall customer、personality、marketing 等）
+- **AI 輔助解讀** — 把 clustering / RFM 結果丟給 ChatGPT / Gemini / Claude 產生人類可讀的分析報告
+- **Kaggle 範例庫** — 17 大類、約 2,019 個解決方案資料夾（**抽查發現完成度不齊**：部分是完整實作，部分是 LLM 批次生成的骨架，**持續手動修整中**）
+- **Kaggle 資料集下載工具** — 支援 50+ 熱門資料集一鍵下載
 
-### 🆕 2024-2025年最新特性
-
-根據最新行業研究:
-
-- **AI驅動分群** - 使用AI工具可減少75%分析時間,提升95%準確度
-- **動態實時分析** - 機器學習模型自動更新客戶分群
-- **隱私優先** - 95%客戶更信任重視數據隱私的品牌
-- **多算法支持** - K-Means、DBSCAN、GMM、Hierarchical等4種完整實現的聚類算法
-- **進階CLV預測** - 結合RFM與機器學習的混合方法
-- **自動化初始化** - 一鍵創建完整專案結構
-- **專業異常處理** - 15+個自定義異常類,提供精確的錯誤信息和恢復建議
+> ⚠️ **誠實聲明**：早期版本 README 引用過「AI 分群可減少 75% 分析時間 / 95% 準確度」「100% 文檔覆蓋」等數字，這些**沒有來源、不該出現在 README**，已於 2026-05 移除。如果你看到舊截圖留有那些句子，請以本版為準。
 
 ## 📁 專案結構
 
@@ -72,24 +57,24 @@ Data-Analysis-with-Chatbots/
 │   ├── 04_personality_analysis.md  # 客戶人格分析
 │   └── 05_marketing_segmentation.md # 營銷分群策略
 │
-├── kaggle_solutions/               # 🏆 2000個Kaggle實戰解決方案
-│   ├── 01_structured_data/        # 結構化數據 (112個)
-│   ├── 02_time_series/            # 時間序列 (128個)
-│   ├── 03_nlp/                    # 自然語言處理 (112個)
-│   ├── 04_recommendation/         # 推薦系統 (116個)
-│   ├── 05_computer_vision/        # 計算機視覺 (110個)
-│   ├── 06_clustering/             # 聚類分析 (120個)
-│   ├── 07_special_domains/        # 特殊領域 (125個)
-│   ├── 08_deep_learning/          # 深度學習 (125個)
-│   ├── 09_audio_signal/           # 音訊信號 (120個)
-│   ├── 10_anomaly_detection/      # 異常檢測 (119個)
-│   ├── 11_graph_networks/         # 圖神經網絡 (119個)
-│   ├── 12_geospatial/             # 地理空間 (118個)
-│   ├── 13_feature_engineering/    # 特徵工程 (123個)
-│   ├── 14_ensemble_methods/       # 集成學習 (123個)
-│   ├── 15_bayesian_methods/       # 貝葉斯方法 (118個)
-│   ├── 16_optimization/           # 優化算法 (118個)
-│   ├── 17_multimodal/             # 多模態學習 (111個)
+├── kaggle_solutions/               # ~2,019 個 Kaggle 風格解決方案資料夾（品質不齊，見 ✨ 核心特色 註）
+│   ├── 01_structured_data/        # 結構化數據 (116 dirs)
+│   ├── 02_time_series/            # 時間序列 (130 dirs)
+│   ├── 03_nlp/                    # 自然語言處理 (112 dirs)
+│   ├── 04_recommendation/         # 推薦系統 (114 dirs)
+│   ├── 05_computer_vision/        # 計算機視覺 (110 dirs)
+│   ├── 06_clustering/             # 聚類分析 (119 dirs)
+│   ├── 07_special_domains/        # 特殊領域 (125 dirs)
+│   ├── 08_deep_learning/          # 深度學習 (124 dirs)
+│   ├── 09_audio_signal/           # 音訊信號 (119 dirs)
+│   ├── 10_anomaly_detection/      # 異常檢測 (117 dirs)
+│   ├── 11_graph_networks/         # 圖神經網絡 (117 dirs)
+│   ├── 12_geospatial/             # 地理空間 (116 dirs)
+│   ├── 13_feature_engineering/    # 特徵工程 (121 dirs)
+│   ├── 14_ensemble_methods/       # 集成學習 (121 dirs)
+│   ├── 15_bayesian_methods/       # 貝葉斯方法 (116 dirs)
+│   ├── 16_optimization/           # 優化算法 (116 dirs)
+│   ├── 17_multimodal/             # 多模態學習 (109 dirs)
 │   ├── README.md                  # Kaggle解決方案總覽
 │   ├── INDEX.md                   # 完整索引
 │   └── SOLUTIONS_SUMMARY.md       # 統計摘要
