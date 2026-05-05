@@ -69,23 +69,20 @@ jobs:
     - name: Run tests
       # --timeout=60 prevents single-test hangs from eating the
       # 6-hour Actions limit.
-      # --ignore lines skip 4 test files that have known test-vs-impl
-      # drift (DataLoader.load_csv renamed, etc.) — a separate cleanup
-      # PR will re-enable them once the implementations are realigned.
-      # Explicit list, not a glob, so anyone reading this knows
-      # exactly what's being skipped.
-      # --cov-fail-under was removed (was 60, actual is currently lower
-      # because the 4 ignored files held a chunk of covered code).
-      # Re-add a realistic threshold once the ignored files come back.
+      # test_integration.py is still ignored: 4 fails depend on a
+      # separate RFMAnalyzer impl bug (cannot insert CustomerID,
+      # already exists). Once that's fixed, this --ignore comes out.
+      # Other files (test_data_loader, test_model_utils,
+      # test_preprocessing) were re-enabled after PR #30 realigned
+      # their impls with the test contract.
+      # --cov-fail-under intentionally absent until the integration
+      # file comes back online — re-add a realistic threshold then.
       run: |
         pytest tests/ -v -n auto --timeout=60 --tb=short \
           --cov=src/data_analysis_chatbots \
           --cov-report=xml \
           --cov-report=term-missing \
-          --ignore=tests/test_data_loader.py \
-          --ignore=tests/test_integration.py \
-          --ignore=tests/test_model_utils.py \
-          --ignore=tests/test_preprocessing.py
+          --ignore=tests/test_integration.py
 
     - name: Upload coverage report
       if: always()
