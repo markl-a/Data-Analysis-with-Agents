@@ -293,13 +293,16 @@ def load_model(
 
 def export_model_metadata(
     model_name: str,
-    output_path: Optional[Path] = None
+    output_path: Optional[Path] = None,
+    registry: Optional[ModelRegistry] = None,
 ) -> Path:
     """導出模型元數據為JSON
 
     Args:
         model_name: 模型名稱
         output_path: 輸出路徑(默認: models/{model_name}_metadata.json)
+        registry: 指定 ModelRegistry 實例。預設 None 會建立新的（使用預設 registry path），
+            測試或多 registry 場景下可傳入自訂的 registry。
 
     Returns:
         導出的文件路徑
@@ -307,7 +310,8 @@ def export_model_metadata(
     Examples:
         >>> export_model_metadata('customer_segmentation')
     """
-    registry = ModelRegistry()
+    if registry is None:
+        registry = ModelRegistry()
     model_info = registry.get_model_info(model_name)
 
     if not model_info:
@@ -326,18 +330,23 @@ def export_model_metadata(
     return output_path
 
 
-def compare_models(model_names: List[str]) -> None:
+def compare_models(
+    model_names: List[str],
+    registry: Optional[ModelRegistry] = None,
+) -> None:
     """比較多個模型的元數據
 
     Args:
         model_names: 模型名稱列表
+        registry: 指定 ModelRegistry 實例。預設 None 會建立新的。
 
     Examples:
         >>> compare_models(['model_v1', 'model_v2', 'model_v3'])
     """
     import pandas as pd
 
-    registry = ModelRegistry()
+    if registry is None:
+        registry = ModelRegistry()
     models_info = []
 
     for name in model_names:
@@ -348,24 +357,34 @@ def compare_models(model_names: List[str]) -> None:
                 **info
             })
 
+    # Print to stdout (not logger) so callers can capture output via
+    # standard stdout-redirection mechanisms (pytest's capsys, shell
+    # piping, etc.). The original implementation used logger.info which
+    # writes to stderr by default and bypasses capsys.out.
     if not models_info:
-        logger.warning("沒有找到任何模型")
+        print("沒有找到任何模型")
         return
 
     df = pd.DataFrame(models_info)
-    logger.info("\n" + "="*80)
-    logger.info("模型比較")
-    logger.info("="*80)
-    logger.info(df.to_string(index=False))
-    logger.info("="*80 + "\n")
+    print()
+    print("=" * 80)
+    print("模型比較")
+    print("=" * 80)
+    print(df.to_string(index=False))
+    print("=" * 80)
 
 
-def cleanup_old_models(days: int = 30, dry_run: bool = True) -> List[str]:
+def cleanup_old_models(
+    days: int = 30,
+    dry_run: bool = True,
+    registry: Optional[ModelRegistry] = None,
+) -> List[str]:
     """清理舊模型
 
     Args:
         days: 保留最近N天的模型
         dry_run: 僅模擬,不實際刪除
+        registry: 指定 ModelRegistry 實例。預設 None 會建立新的。
 
     Returns:
         刪除(或將要刪除)的模型ID列表
@@ -379,12 +398,20 @@ def cleanup_old_models(days: int = 30, dry_run: bool = True) -> List[str]:
     """
     from datetime import timedelta
 
-    registry = ModelRegistry()
+    if registry is None:
+        registry = ModelRegistry()
     cutoff_date = datetime.now() - timedelta(days=days)
     to_delete = []
 
-    for model_id, metadata in registry.registry['models'].items():
-        registered_at = datetime.fromisoformat(metadata.get('registered_at', ''))
+    # Snapshot the keys upfront because delete_model() mutates the
+    # underlying dict — iterating over the live dict while deleting
+    # raises RuntimeError on Python 3.x.
+    for model_id in list(registry.registry['models'].keys()):
+        metadata = registry.registry['models'][model_id]
+        registered_at_str = metadata.get('registered_at', '')
+        if not registered_at_str:
+            continue
+        registered_at = datetime.fromisoformat(registered_at_str)
 
         if registered_at < cutoff_date:
             to_delete.append(model_id)

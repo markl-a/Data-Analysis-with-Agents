@@ -1,6 +1,6 @@
 """Data validation utilities."""
 
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -8,287 +8,183 @@ from loguru import logger
 
 
 class DataValidator:
-    """Validate and check data quality."""
+    """Validate and check data quality.
+
+    The check_*() methods return simple, directly-subscriptable shapes
+    (per-column counts / dicts / int) so callers can do
+    `validator.check_missing_values()['col_a']` without unwrapping
+    metadata. The richer `generate_report()` aggregates them into a
+    single summary dict.
+    """
 
     def __init__(self, df: pd.DataFrame):
-        """
-        Initialize the DataValidator.
-
-        Args:
-            df: DataFrame to validate
-        """
         self.df = df
-        self.validation_results = {}
 
-    def check_missing_values(self) -> Dict[str, Any]:
+    # ── per-column / per-dataset checks ─────────────────────────────────
+
+    def check_missing_values(self) -> Dict[str, int]:
+        """Per-column missing-value counts.
+
+        Returns a flat dict ``{column_name: missing_count}`` for every
+        column in the frame. Use ``generate_report()`` if you also need
+        percentages, totals, or which columns have missing values.
         """
-        Check for missing values in the DataFrame.
+        return {col: int(count) for col, count in self.df.isnull().sum().items()}
 
-        Returns:
-            Dictionary with missing value statistics
+    def check_duplicates(self, subset: Optional[List[str]] = None) -> int:
+        """Number of fully-duplicated rows.
+
+        With ``subset`` only the listed columns are considered when
+        deciding whether a row is a duplicate.
         """
-        logger.info("Checking for missing values...")
-
-        missing_count = self.df.isnull().sum()
-        missing_percent = (missing_count / len(self.df) * 100).round(2)
-
-        results = {
-            'total_rows': len(self.df),
-            'total_columns': len(self.df.columns),
-            'missing_by_column': {
-                col: {
-                    'count': int(count),
-                    'percentage': float(missing_percent[col])
-                }
-                for col, count in missing_count.items()
-                if count > 0
-            },
-            'columns_with_missing': list(missing_count[missing_count > 0].index),
-            'total_missing_cells': int(missing_count.sum())
-        }
-
-        self.validation_results['missing_values'] = results
-        logger.info(f"Found {results['total_missing_cells']} missing values")
-
-        return results
-
-    def check_duplicates(self, subset: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        Check for duplicate rows.
-
-        Args:
-            subset: List of columns to check for duplicates. If None, checks all columns.
-
-        Returns:
-            Dictionary with duplicate statistics
-        """
-        logger.info("Checking for duplicates...")
-
         if subset:
-            duplicates = self.df.duplicated(subset=subset, keep='first')
-        else:
-            duplicates = self.df.duplicated(keep='first')
+            return int(self.df.duplicated(subset=subset).sum())
+        return int(self.df.duplicated().sum())
 
-        duplicate_count = duplicates.sum()
-        duplicate_rows = self.df[duplicates]
+    def check_data_types(self) -> Dict[str, str]:
+        """Per-column dtype as a string (``'int64'``, ``'float64'``, ``'object'``)."""
+        return {col: str(dtype) for col, dtype in self.df.dtypes.items()}
 
-        results = {
-            'duplicate_count': int(duplicate_count),
-            'duplicate_percentage': float((duplicate_count / len(self.df) * 100).round(2)),
-            'checked_columns': subset if subset else 'all',
-            'has_duplicates': bool(duplicate_count > 0)
-        }
+    def get_summary_statistics(self) -> pd.DataFrame:
+        """Wrap pandas ``describe(include='all')`` for one-call access."""
+        return self.df.describe(include='all')
 
-        self.validation_results['duplicates'] = results
-        logger.info(f"Found {duplicate_count} duplicate rows")
-
-        return results
-
-    def check_data_types(self) -> Dict[str, Any]:
-        """
-        Check data types of columns.
-
-        Returns:
-            Dictionary with data type information
-        """
-        logger.info("Checking data types...")
-
-        dtypes = self.df.dtypes.astype(str).to_dict()
-
-        results = {
-            'data_types': dtypes,
-            'numeric_columns': list(self.df.select_dtypes(include=[np.number]).columns),
-            'categorical_columns': list(self.df.select_dtypes(include=['object']).columns),
-            'datetime_columns': list(self.df.select_dtypes(include=['datetime64']).columns)
-        }
-
-        self.validation_results['data_types'] = results
-        logger.info(f"Found {len(results['numeric_columns'])} numeric, "
-                   f"{len(results['categorical_columns'])} categorical columns")
-
-        return results
+    # ── richer per-column inspection ────────────────────────────────────
 
     def check_value_ranges(self, column: str) -> Dict[str, Any]:
-        """
-        Check value ranges for a numeric column.
-
-        Args:
-            column: Column name to check
-
-        Returns:
-            Dictionary with range statistics
-        """
+        """Min/max/mean/quartiles for a numeric column."""
         if column not in self.df.columns:
             raise ValueError(f"Column '{column}' not found")
-
         if not pd.api.types.is_numeric_dtype(self.df[column]):
             raise ValueError(f"Column '{column}' is not numeric")
 
-        logger.info(f"Checking value ranges for: {column}")
-
-        results = {
+        s = self.df[column]
+        return {
             'column': column,
-            'min': float(self.df[column].min()),
-            'max': float(self.df[column].max()),
-            'mean': float(self.df[column].mean()),
-            'median': float(self.df[column].median()),
-            'std': float(self.df[column].std()),
-            'q25': float(self.df[column].quantile(0.25)),
-            'q75': float(self.df[column].quantile(0.75))
+            'min':    float(s.min()),
+            'max':    float(s.max()),
+            'mean':   float(s.mean()),
+            'median': float(s.median()),
+            'std':    float(s.std()),
+            'q25':    float(s.quantile(0.25)),
+            'q75':    float(s.quantile(0.75)),
         }
 
-        return results
-
     def check_outliers(self, column: str, method: str = 'iqr', threshold: float = 1.5) -> Dict[str, Any]:
-        """
-        Check for outliers in a numeric column.
-
-        Args:
-            column: Column name to check
-            method: Method to use ('iqr' or 'zscore')
-            threshold: Threshold for outlier detection (1.5 for IQR, 3 for z-score)
-
-        Returns:
-            Dictionary with outlier information
-        """
+        """Outlier detection using IQR (default) or z-score."""
         if column not in self.df.columns:
             raise ValueError(f"Column '{column}' not found")
-
         if not pd.api.types.is_numeric_dtype(self.df[column]):
             raise ValueError(f"Column '{column}' is not numeric")
 
-        logger.info(f"Checking outliers for: {column} using {method} method")
-
+        s = self.df[column]
         if method == 'iqr':
-            q1 = self.df[column].quantile(0.25)
-            q3 = self.df[column].quantile(0.75)
+            q1, q3 = s.quantile(0.25), s.quantile(0.75)
             iqr = q3 - q1
-            lower_bound = q1 - threshold * iqr
-            upper_bound = q3 + threshold * iqr
-            outliers = (self.df[column] < lower_bound) | (self.df[column] > upper_bound)
-
+            lower, upper = q1 - threshold * iqr, q3 + threshold * iqr
+            outliers = (s < lower) | (s > upper)
         elif method == 'zscore':
-            mean = self.df[column].mean()
-            std = self.df[column].std()
-            z_scores = np.abs((self.df[column] - mean) / std)
-            outliers = z_scores > threshold
-
+            z = np.abs((s - s.mean()) / s.std())
+            outliers = z > threshold
         else:
             raise ValueError(f"Unknown method: {method}")
 
-        outlier_count = outliers.sum()
-
-        results = {
-            'column': column,
-            'method': method,
-            'outlier_count': int(outlier_count),
-            'outlier_percentage': float((outlier_count / len(self.df) * 100).round(2)),
-            'outlier_indices': list(self.df[outliers].index) if outlier_count < 100 else [],
-            'has_outliers': bool(outlier_count > 0)
+        outlier_count = int(outliers.sum())
+        return {
+            'column':              column,
+            'method':              method,
+            'outlier_count':       outlier_count,
+            'outlier_percentage':  float((outlier_count / len(self.df) * 100).round(2)),
+            'outlier_indices':     list(self.df[outliers].index) if outlier_count < 100 else [],
+            'has_outliers':        outlier_count > 0,
         }
 
-        return results
-
     def check_unique_values(self, column: str) -> Dict[str, Any]:
-        """
-        Check unique values in a column.
-
-        Args:
-            column: Column name to check
-
-        Returns:
-            Dictionary with unique value information
-        """
+        """Unique-value statistics for a column."""
         if column not in self.df.columns:
             raise ValueError(f"Column '{column}' not found")
 
-        logger.info(f"Checking unique values for: {column}")
-
-        unique_count = self.df[column].nunique()
+        unique_count = int(self.df[column].nunique())
         value_counts = self.df[column].value_counts()
-
-        results = {
-            'column': column,
-            'unique_count': int(unique_count),
-            'total_count': len(self.df),
+        return {
+            'column':            column,
+            'unique_count':      unique_count,
+            'total_count':       len(self.df),
             'unique_percentage': float((unique_count / len(self.df) * 100).round(2)),
-            'most_common': value_counts.head(10).to_dict() if unique_count < 1000 else {},
-            'is_unique': unique_count == len(self.df)
+            'most_common':       value_counts.head(10).to_dict() if unique_count < 1000 else {},
+            'is_unique':         unique_count == len(self.df),
         }
 
-        return results
+    # ── lightweight validation predicates (return bool) ─────────────────
+
+    def validate_column_exists(self, column: str) -> bool:
+        """``True`` if ``column`` is in the frame's columns."""
+        return column in self.df.columns
+
+    def validate_no_nulls(self, column: str) -> bool:
+        """``True`` if ``column`` has zero missing values."""
+        if column not in self.df.columns:
+            raise ValueError(f"Column '{column}' not found")
+        return not bool(self.df[column].isnull().any())
+
+    def validate_numeric_range(self, column: str, min_value: Union[int, float], max_value: Union[int, float]) -> bool:
+        """``True`` if every value of ``column`` lies in [min_value, max_value]."""
+        if column not in self.df.columns:
+            raise ValueError(f"Column '{column}' not found")
+        if not pd.api.types.is_numeric_dtype(self.df[column]):
+            raise ValueError(f"Column '{column}' is not numeric")
+        s = self.df[column].dropna()
+        return bool(s.min() >= min_value and s.max() <= max_value)
+
+    # ── mutators (return a new DataFrame, never mutate self.df) ──────────
+
+    def fix_missing_values(
+        self,
+        strategy: str = 'drop',
+        fill_value: Optional[Union[int, float, str]] = None,
+    ) -> pd.DataFrame:
+        """Return a copy of ``self.df`` with missing values handled.
+
+        ``strategy='drop'`` drops any row containing a NaN.
+        ``strategy='fill'`` fills NaNs with ``fill_value``.
+        """
+        if strategy == 'drop':
+            return self.df.dropna()
+        if strategy == 'fill':
+            return self.df.fillna(fill_value)
+        raise ValueError(f"Unknown strategy: {strategy!r} (expected 'drop' or 'fill')")
+
+    def remove_duplicates(self, subset: Optional[List[str]] = None) -> pd.DataFrame:
+        """Return a copy of ``self.df`` with duplicate rows removed."""
+        return self.df.drop_duplicates(subset=subset)
+
+    # ── aggregate report ────────────────────────────────────────────────
 
     def generate_report(self) -> Dict[str, Any]:
-        """
-        Generate a comprehensive data quality report.
-
-        Returns:
-            Dictionary with complete validation results
-        """
-        logger.info("Generating comprehensive data quality report...")
-
-        # Run all checks
-        self.check_missing_values()
-        self.check_duplicates()
-        self.check_data_types()
-
-        # Check outliers for numeric columns
-        numeric_columns = self.df.select_dtypes(include=[np.number]).columns
-        outlier_results = {}
-        for col in numeric_columns:
-            try:
-                outlier_results[col] = self.check_outliers(col)
-            except Exception as e:
-                logger.warning(f"Could not check outliers for {col}: {e}")
-
-        self.validation_results['outliers'] = outlier_results
-
-        # Add summary
-        self.validation_results['summary'] = {
-            'total_rows': len(self.df),
-            'total_columns': len(self.df.columns),
-            'memory_usage_mb': float(self.df.memory_usage(deep=True).sum() / 1024**2),
-            'validation_timestamp': pd.Timestamp.now().isoformat()
+        """One-call summary report — totals + per-column missing/dtypes + duplicate count."""
+        return {
+            'total_rows':     len(self.df),
+            'total_columns':  len(self.df.columns),
+            'missing_values': self.check_missing_values(),
+            'duplicate_rows': self.check_duplicates(),
+            'data_types':     self.check_data_types(),
         }
 
-        logger.success("Data quality report generated successfully")
-
-        return self.validation_results
-
-    def print_report(self):
-        """Print a formatted validation report."""
-        if not self.validation_results:
-            self.generate_report()
-
-        logger.info("\n" + "="*60)
+    def print_report(self) -> None:
+        """Print a human-readable summary to the loguru logger."""
+        report = self.generate_report()
+        logger.info("=" * 60)
         logger.info("DATA QUALITY REPORT")
-        logger.info("="*60)
+        logger.info("=" * 60)
+        logger.info(f"Rows:    {report['total_rows']:,}")
+        logger.info(f"Columns: {report['total_columns']}")
 
-        summary = self.validation_results.get('summary', {})
-        logger.info(f"\nDataset Summary:")
-        logger.info(f"  Rows: {summary.get('total_rows', 0):,}")
-        logger.info(f"  Columns: {summary.get('total_columns', 0)}")
-        logger.info(f"  Memory Usage: {summary.get('memory_usage_mb', 0):.2f} MB")
+        missing = report['missing_values']
+        cols_with_missing = [c for c, n in missing.items() if n > 0]
+        logger.info(f"Missing: {sum(missing.values()):,} cells across {len(cols_with_missing)} columns")
+        for col in cols_with_missing[:5]:
+            pct = (missing[col] / report['total_rows'] * 100) if report['total_rows'] else 0
+            logger.info(f"  - {col}: {missing[col]} ({pct:.2f}%)")
 
-        missing = self.validation_results.get('missing_values', {})
-        logger.info(f"\nMissing Values:")
-        logger.info(f"  Total Missing Cells: {missing.get('total_missing_cells', 0):,}")
-        if missing.get('columns_with_missing'):
-            logger.info(f"  Columns with Missing Values: {len(missing['columns_with_missing'])}")
-            for col in missing['columns_with_missing'][:5]:
-                info = missing['missing_by_column'][col]
-                logger.info(f"    - {col}: {info['count']} ({info['percentage']}%)")
-
-        duplicates = self.validation_results.get('duplicates', {})
-        logger.info(f"\nDuplicates:")
-        logger.info(f"  Duplicate Rows: {duplicates.get('duplicate_count', 0):,} "
-              f"({duplicates.get('duplicate_percentage', 0)}%)")
-
-        outliers = self.validation_results.get('outliers', {})
-        if outliers:
-            logger.info(f"\nOutliers (IQR method):")
-            for col, data in outliers.items():
-                if data.get('has_outliers'):
-                    logger.info(f"  - {col}: {data['outlier_count']} ({data['outlier_percentage']}%)")
-
-        logger.info("\n" + "="*60 + "\n")
+        logger.info(f"Duplicates: {report['duplicate_rows']:,} rows")
+        logger.info("=" * 60)

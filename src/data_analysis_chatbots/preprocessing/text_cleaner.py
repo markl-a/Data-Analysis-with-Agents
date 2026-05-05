@@ -133,6 +133,17 @@ class TextCleaner:
 
         return df
 
+    # Alias kept for the simpler name pattern; some callers use
+    # `clean_dataframe_column` because that's what the test suite
+    # standardised on. Behaviour is identical.
+    def clean_dataframe_column(
+        self,
+        df: pd.DataFrame,
+        text_column: str,
+        output_column: Optional[str] = None,
+    ) -> pd.DataFrame:
+        return self.clean_dataframe(df, text_column, output_column)
+
     def get_word_count(self, text: str) -> int:
         """Get the number of words in text."""
         return len(text.split())
