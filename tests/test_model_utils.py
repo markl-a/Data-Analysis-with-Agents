@@ -344,7 +344,7 @@ class TestExportModelMetadata:
         """測試導出元數據"""
         output_path = temp_dir / "exported_metadata.json"
 
-        path = export_model_metadata('test_model', output_path)
+        path = export_model_metadata('test_model', output_path, registry=registry_with_model)
 
         assert path.exists()
         assert path == output_path
@@ -360,7 +360,7 @@ class TestExportModelMetadata:
     def test_export_nonexistent_model(self, temp_dir, registry_with_model):
         """測試導出不存在的模型元數據"""
         with pytest.raises(ModelLoadError):
-            export_model_metadata('nonexistent_model', temp_dir / "output.json")
+            export_model_metadata('nonexistent_model', temp_dir / "output.json", registry=registry_with_model)
 
 
 class TestCompareModels:
@@ -400,7 +400,7 @@ class TestCompareModels:
     def test_compare_models(self, registry_with_models, capsys):
         """測試模型比較輸出"""
         # 這個函數會打印輸出，我們主要測試它不會拋出錯誤
-        compare_models(['model_v1', 'model_v2', 'model_v3'])
+        compare_models(['model_v1', 'model_v2', 'model_v3'], registry=registry_with_models)
 
         captured = capsys.readouterr()
         assert '模型比較' in captured.out
@@ -408,7 +408,7 @@ class TestCompareModels:
 
     def test_compare_nonexistent_models(self, registry_with_models, capsys):
         """測試比較不存在的模型"""
-        compare_models(['nonexistent1', 'nonexistent2'])
+        compare_models(['nonexistent1', 'nonexistent2'], registry=registry_with_models)
 
         captured = capsys.readouterr()
         assert '沒有找到任何模型' in captured.out
@@ -449,7 +449,7 @@ class TestCleanupOldModels:
 
     def test_cleanup_dry_run(self, registry_with_old_models):
         """測試模擬清理模式"""
-        to_delete = cleanup_old_models(days=30, dry_run=True)
+        to_delete = cleanup_old_models(days=30, dry_run=True, registry=registry_with_old_models)
 
         assert len(to_delete) >= 1
         assert 'old_model_1' in to_delete
@@ -472,7 +472,7 @@ class TestCleanupOldModels:
         registry._save_registry()
 
         # 實際清理
-        deleted = cleanup_old_models(days=30, dry_run=False)
+        deleted = cleanup_old_models(days=30, dry_run=False, registry=registry)
 
         assert 'old_model' in deleted
 

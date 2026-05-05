@@ -8,7 +8,7 @@
 
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Set
+from typing import Optional, Dict, Any, List, Set, Union
 from loguru import logger
 
 from .config_loader import ConfigLoader
@@ -243,3 +243,55 @@ class DataLoader:
         """
         datasets = self.config.get('datasets', {})
         return list(datasets.keys())
+
+    # ── generic file IO helpers ──────────────────────────────────────────
+    # The methods above (`load_disaster_tweets`, `load_ecommerce`, etc.)
+    # are dataset-specific shortcuts that look the path up via the config
+    # registry. The methods below are generic readers any caller can use
+    # to load arbitrary CSV / Excel files without registering them first.
+
+    def load_csv(self, path: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+        """Read a CSV file into a DataFrame.
+
+        Thin wrapper around ``pandas.read_csv`` — every kwarg
+        (``encoding``, ``parse_dates``, ``index_col``, ``sep``, ...)
+        is forwarded verbatim. Raises ``FileNotFoundError`` if the
+        path doesn't exist.
+        """
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"CSV file not found: {path}")
+        return pd.read_csv(p, **kwargs)
+
+    def load_excel(self, path: Union[str, Path], **kwargs: Any) -> pd.DataFrame:
+        """Read an Excel file into a DataFrame (wraps ``pandas.read_excel``)."""
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Excel file not found: {path}")
+        return pd.read_excel(p, **kwargs)
+
+    @staticmethod
+    def validate_required_columns(df: pd.DataFrame, required: List[str]) -> bool:
+        """Return True iff every column in ``required`` is present in ``df``."""
+        return all(col in df.columns for col in required)
+
+    @staticmethod
+    def get_data_info(df: pd.DataFrame) -> Dict[str, Any]:
+        """Return basic shape / dtype / null information about a DataFrame."""
+        return {
+            'shape':         df.shape,
+            'columns':       list(df.columns),
+            'dtypes':        {col: str(dt) for col, dt in df.dtypes.items()},
+            'null_counts':   {col: int(n) for col, n in df.isnull().sum().items()},
+            'memory_usage':  int(df.memory_usage(deep=True).sum()),
+        }
+
+    @staticmethod
+    def sample_data(df: pd.DataFrame, n: int = 10, random_state: Optional[int] = None) -> pd.DataFrame:
+        """Return a random sample of ``n`` rows from ``df``.
+
+        If ``n`` exceeds ``len(df)`` the full frame is returned instead
+        of raising — convenient for small fixtures in tests.
+        """
+        n = min(n, len(df))
+        return df.sample(n=n, random_state=random_state)
