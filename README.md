@@ -118,8 +118,8 @@ Data-Analysis-with-Chatbots/
 1. **克隆專案**
 
 ```bash
-git clone https://github.com/markl-a/Data-Analysis-with-Chatbots.git
-cd Data-Analysis-with-Chatbots
+git clone https://github.com/markl-a/Data-Analysis-with-Agents.git
+cd Data-Analysis-with-Agents
 ```
 
 2. **創建虛擬環境**(推薦)
@@ -168,6 +168,28 @@ python -m data_analysis_chatbots.data_downloader --dataset mall_customers
 # 或創建範例數據用於測試
 python -m data_analysis_chatbots.data_downloader --sample
 ```
+
+### 跑測試 (Running the test suite)
+
+裝完依賴跟 `pip install -e .` 之後可直接跑測試：
+
+```bash
+# 全部測試 (377 個 test，跑 ~10 秒)
+pytest
+
+# 加 verbose
+pytest -v
+
+# 只看 failures
+pytest --tb=short
+
+# 跑單一檔案
+pytest tests/test_clustering.py -v
+```
+
+如果遇到 `ModuleNotFoundError: No module named 'data_analysis_chatbots'`，代表還沒跑步驟 4 的 `pip install -e .` — 那一步把 `src/data_analysis_chatbots/` 註冊成 import 得到的 package。
+
+> **目前已知失敗**：377 個 test 中約 58 個失敗，多數是 test 檔跟 `data_analysis_chatbots` 模組 API 不同步（例如 `DataLoader.load_csv` 已改名）。修復進行中——歡迎 PR 修。
 
 ### 基本使用
 
