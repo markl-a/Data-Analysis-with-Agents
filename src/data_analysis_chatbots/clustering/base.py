@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Union
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -237,17 +237,26 @@ class BaseClusterer(ABC):
 
     def evaluate_clustering(
         self,
-        X: Optional[np.ndarray] = None,
-        labels: Optional[np.ndarray] = None
-    ) -> Dict[str, float]:
+        X: Optional[Union[np.ndarray, pd.DataFrame]] = None,
+        feature_cols: Optional[List[str]] = None,
+        labels: Optional[np.ndarray] = None,
+    ) -> Dict[str, Any]:
         """評估聚類質量（通用實現）
 
         計算常用的聚類評估指標：
         - silhouette_score: 輪廓係數（-1 到 1，越高越好）
         - davies_bouldin_score: DB 指數（越低越好）
+        - noise_percentage: 噪聲點佔總樣本的百分比
+
+        兩種呼叫方式：
+            1. evaluate_clustering(df, ['feature1', 'feature2'])
+               → 傳 DataFrame + 特徵欄位名稱（會自動 to_numpy）
+            2. evaluate_clustering()                         （使用 fit 時的資料）
+            3. evaluate_clustering(X=arr, labels=lbl)        （直接傳 numpy）
 
         Args:
-            X: 特徵數據（默認使用 self._X_fitted）
+            X: 特徵數據（DataFrame 或 ndarray，None 用 self._X_fitted）
+            feature_cols: 當 X 是 DataFrame 時要使用的欄位名稱
             labels: 聚類標籤（默認使用 self.labels_）
 
         Returns:
@@ -255,7 +264,15 @@ class BaseClusterer(ABC):
         """
         from ..exceptions import ClusteringError
 
-        X_data = X if X is not None else self._X_fitted
+        # Resolve X. If caller passed (DataFrame, [col_names]) extract the columns;
+        # otherwise fall back to fit-time data.
+        if X is not None and isinstance(X, pd.DataFrame) and feature_cols is not None:
+            X_data = X[feature_cols].to_numpy()
+        elif X is not None:
+            X_data = X
+        else:
+            X_data = self._X_fitted
+
         cluster_labels = labels if labels is not None else self.labels_
 
         if X_data is None or cluster_labels is None:
@@ -267,11 +284,22 @@ class BaseClusterer(ABC):
         # 獲取有效聚類數（排除噪聲點）
         valid_mask = cluster_labels != -1
         n_clusters = len(set(cluster_labels[valid_mask]))
+        n_samples = len(cluster_labels)
+        n_noise = int((cluster_labels == -1).sum())
+
+        # Per-cluster sample count keyed by cluster label (-1 = noise).
+        # Useful for spotting heavily-skewed clusterings without eyeballing
+        # silhouette numbers alone.
+        cluster_distribution: Dict[int, int] = (
+            pd.Series(cluster_labels).value_counts().sort_index().to_dict()
+        )
 
         metrics: Dict[str, Any] = {
-            'n_clusters': n_clusters,
-            'n_samples': len(cluster_labels),
-            'n_noise': int((cluster_labels == -1).sum())
+            'n_clusters':           n_clusters,
+            'n_samples':            n_samples,
+            'n_noise':              n_noise,
+            'noise_percentage':     round(n_noise / n_samples * 100, 2) if n_samples else 0.0,
+            'cluster_distribution': {int(k): int(v) for k, v in cluster_distribution.items()},
         }
 
         # 只有當有足夠的聚類時才計算評估指標

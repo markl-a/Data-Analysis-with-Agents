@@ -55,15 +55,18 @@ class RFMAnalyzer:
         """
         logger.info("Calculating RFM metrics...")
 
-        # Calculate Recency, Frequency, and Monetary
-        rfm = self.df.groupby(self.customer_id_col).agg({
-            self.date_col: lambda x: (self.reference_date - x.max()).days,  # Recency
-            self.customer_id_col: 'count',  # Frequency (transaction count)
-            self.amount_col: 'sum'  # Monetary
-        }).reset_index()
-
-        # Rename columns
-        rfm.columns = [self.customer_id_col, 'Recency', 'Frequency', 'Monetary']
+        # Calculate Recency, Frequency, and Monetary using named aggregation.
+        # The previous version used a positional agg dict that included
+        # `self.customer_id_col: 'count'` — but that's also the groupby
+        # key, so after .reset_index() pandas tried to insert it as a
+        # column and failed with "cannot insert CustomerID, already exists".
+        # Named-aggregation here avoids the collision: Frequency uses
+        # date_col as its source (any non-null column gives the row count).
+        rfm = self.df.groupby(self.customer_id_col).agg(
+            Recency=(self.date_col, lambda x: (self.reference_date - x.max()).days),
+            Frequency=(self.date_col, 'count'),
+            Monetary=(self.amount_col, 'sum'),
+        ).reset_index()
 
         # Ensure Monetary is positive
         rfm = rfm[rfm['Monetary'] > 0]

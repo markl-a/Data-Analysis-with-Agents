@@ -512,8 +512,11 @@ class TestAnalyzeCommand:
     @patch('data_analysis_chatbots.cli.DataLoader')
     @patch('data_analysis_chatbots.cli.KMeansClusterer')
     @patch('builtins.open', create=True)
-    def test_analyze_with_output_file(self, mock_open, mock_clusterer_class,
-                                      mock_loader_class, mock_setup_logging):
+    @patch('data_analysis_chatbots.cli.validate_output_path',
+           side_effect=lambda p: Path(p))
+    def test_analyze_with_output_file(self, mock_validate_path, mock_open,
+                                      mock_clusterer_class, mock_loader_class,
+                                      mock_setup_logging):
         """測試輸出文件參數"""
         # 準備
         mock_loader = MagicMock()
