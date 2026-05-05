@@ -1,5 +1,6 @@
 """測試數據下載器模塊"""
 import pytest
+import sys
 from unittest.mock import Mock, patch, MagicMock, call
 import tempfile
 from pathlib import Path
@@ -50,7 +51,9 @@ class TestDataDownloaderInit:
 
                 assert downloader.config == mock_config
                 assert downloader.project_root == Path(temp_dir)
-                assert str(downloader.raw_data_path).endswith('data/raw')
+                # Compare via Path.parts so we're robust to '/' (Linux/macOS)
+                # vs '\\' (Windows) separators in the stringified path.
+                assert downloader.raw_data_path.parts[-2:] == ('data', 'raw')
                 mock_ensure.assert_called_once()
 
     def test_initialization_without_config(self, temp_dir):
@@ -78,7 +81,9 @@ class TestDataDownloaderInit:
 
                 downloader = DataDownloader(config=mock_config)
 
-                assert 'custom/data/path' in str(downloader.raw_data_path)
+                # Compare via Path.parts (separator-agnostic) — Windows uses
+                # '\\' so substring-matching '/' breaks the test cross-platform.
+                assert downloader.raw_data_path.parts[-3:] == ('custom', 'data', 'path')
                 mock_ensure.assert_called_once_with(downloader.raw_data_path)
 
 
@@ -98,6 +103,7 @@ class TestCheckKaggleSetup:
 
                     assert result is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Posix-only — uses os.getuid + pwd module")
     def test_kaggle_json_exists_correct_permissions_unix(self, mock_config, temp_dir):
         """測試 Unix 系統下正確的權限"""
         with patch('data_analysis_chatbots.data_downloader.get_project_root') as mock_root:
@@ -120,6 +126,7 @@ class TestCheckKaggleSetup:
 
                                 assert result is True
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Posix-only — uses os.getuid + pwd module")
     def test_kaggle_json_incorrect_permissions_unix(self, mock_config, temp_dir):
         """測試 Unix 系統下錯誤的權限"""
         with patch('data_analysis_chatbots.data_downloader.get_project_root') as mock_root:
@@ -140,6 +147,7 @@ class TestCheckKaggleSetup:
 
                             assert result is False
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Posix-only — uses os.getuid + pwd module")
     def test_kaggle_json_incorrect_ownership_unix(self, mock_config, temp_dir):
         """測試 Unix 系統下錯誤的所有權"""
         with patch('data_analysis_chatbots.data_downloader.get_project_root') as mock_root:
@@ -198,6 +206,7 @@ class TestCheckKaggleSetup:
                     # Windows 系統不檢查權限，只要文件存在即可
                     assert result is True
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Posix-only — uses os.getuid + pwd module")
     def test_kaggle_json_ownership_check_keyerror(self, mock_config, temp_dir):
         """測試獲取用戶信息失敗的情況"""
         with patch('data_analysis_chatbots.data_downloader.get_project_root') as mock_root:
@@ -652,7 +661,8 @@ class TestEdgeCases:
 
                 downloader = DataDownloader(config=mock_config)
 
-                assert 'data with spaces/raw' in str(downloader.raw_data_path)
+                # Compare via Path.parts (separator-agnostic).
+                assert downloader.raw_data_path.parts[-2:] == ('data with spaces', 'raw')
 
     def test_unicode_in_paths(self, mock_config, temp_dir):
         """測試路徑中的 Unicode 字符"""

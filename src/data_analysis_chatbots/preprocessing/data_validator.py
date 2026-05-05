@@ -18,6 +18,15 @@ class DataValidator:
     """
 
     def __init__(self, df: pd.DataFrame):
+        # A DataFrame with no schema (zero columns, e.g. pd.DataFrame())
+        # is invalid — every check_*() method would have nothing to operate
+        # on. A DataFrame with a schema but zero rows IS valid: the user
+        # may want to confirm "yes my schema is empty" via generate_report()
+        # without crashing, and the per-column dicts are still well-defined.
+        if df is None or len(df.columns) == 0:
+            raise ValueError(
+                "DataValidator requires a DataFrame with at least one column"
+            )
         self.df = df
 
     # ── per-column / per-dataset checks ─────────────────────────────────

@@ -111,8 +111,15 @@ class TestConfigLoaderInit:
         with pytest.raises(FileNotFoundError) as exc_info:
             ConfigLoader(config_path=non_existent_path)
 
-        assert 'Configuration file not found' in str(exc_info.value)
-        assert non_existent_path in str(exc_info.value)
+        # Compare via Path.parts so the assertion is separator-agnostic.
+        # Stringified path normalises '/tmp/...' to '\\tmp\\...' on Windows;
+        # comparing parts avoids the slash mismatch.
+        from pathlib import Path
+        msg = str(exc_info.value)
+        assert 'Configuration file not found' in msg
+        # Last filename component should appear in the error message
+        # regardless of path separator.
+        assert 'non_existent_config_12345.yaml' in msg
 
     def test_config_loaded_on_init(self, temp_config_file):
         """測試初始化時配置已加載"""

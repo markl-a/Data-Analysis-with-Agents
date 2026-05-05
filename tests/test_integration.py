@@ -188,8 +188,12 @@ class TestEndToEndWorkflow:
         validator = DataValidator(dirty_data)
         initial_report = validator.generate_report()
 
+        # generate_report()['missing_values'] is a per-column dict {col: count}
+        # (post-PR #30). Sum across columns to get total missing-cell count.
+        initial_missing_total = sum(initial_report['missing_values'].values())
+
         assert initial_report['duplicate_rows'] > 0
-        assert initial_report['missing_values'] > 0
+        assert initial_missing_total > 0
 
         # 步驟2: 清洗數據
         # 移除重複
@@ -203,9 +207,10 @@ class TestEndToEndWorkflow:
         # 步驟3: 驗證改進
         final_validator = DataValidator(cleaned_data)
         final_report = final_validator.generate_report()
+        final_missing_total = sum(final_report['missing_values'].values())
 
         assert final_report['duplicate_rows'] == 0
-        assert final_report['missing_values'] < initial_report['missing_values']
+        assert final_missing_total < initial_missing_total
 
     @pytest.mark.integration
     @pytest.mark.slow

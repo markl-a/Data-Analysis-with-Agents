@@ -118,6 +118,7 @@ def _load_dataset(dataset_name: str) -> pd.DataFrame:
     if dataset_name not in loaders:
         logger.error(f"Unknown dataset: {dataset_name}")
         sys.exit(1)
+        return None  # safety net so unit tests that mock sys.exit don't fall through
 
     try:
         df = loaders[dataset_name]()
@@ -127,6 +128,7 @@ def _load_dataset(dataset_name: str) -> pd.DataFrame:
         logger.error(f"Dataset not found: {e}")
         logger.info("Run 'dac-download' to download datasets first")
         sys.exit(1)
+        return None  # safety net so unit tests that mock sys.exit don't fall through
 
 
 def _create_clusterer(algorithm: str, args) -> Any:
@@ -160,6 +162,7 @@ def _create_clusterer(algorithm: str, args) -> Any:
     else:
         logger.error(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
+        return None  # safety net so unit tests that mock sys.exit don't fall through
 
 
 def _run_clustering(
@@ -180,6 +183,10 @@ def _run_clustering(
         (帶有聚類標籤的 DataFrame, 聚類摘要, 評估指標)
     """
     clusterer = _create_clusterer(algorithm, args)
+    if clusterer is None:
+        # _create_clusterer already called sys.exit(1) — but if a test
+        # mocked sys.exit, this guard prevents the AttributeError on None.
+        return df, pd.DataFrame(), {}
     labels = clusterer.fit_predict(df, features)
 
     # 記錄完成信息
@@ -251,6 +258,7 @@ def _get_output_path(args, default_filename: str) -> str:
         except ValueError as e:
             logger.error(f"Invalid output path: {e}")
             sys.exit(1)
+            return ''  # safety net so unit tests that mock sys.exit don't fall through
     return f'data/outputs/{default_filename}'
 
 
@@ -291,6 +299,11 @@ def analyze_data(args) -> None:
 
     # 載入數據
     df = _load_dataset(args.dataset)
+    if df is None:
+        # _load_dataset already called sys.exit(1) — but if a test mocked
+        # sys.exit, we need this return to actually stop here instead of
+        # falling through to DataValidator(None) and crashing.
+        return
 
     # 執行分析
     if args.analysis == 'validate':
@@ -302,6 +315,7 @@ def analyze_data(args) -> None:
         if not features:
             logger.error(f"No feature configuration for dataset: {args.dataset}")
             sys.exit(1)
+            return  # safety net so unit tests that mock sys.exit don't fall through
 
         algorithm = getattr(args, 'algorithm', 'kmeans')
 
@@ -321,6 +335,7 @@ def analyze_data(args) -> None:
         if args.dataset != 'ecommerce':
             logger.error("RFM analysis requires ecommerce dataset")
             sys.exit(1)
+            return  # safety net so unit tests that mock sys.exit don't fall through
 
         segments, summary = _run_rfm_analysis(df)
 
@@ -333,6 +348,7 @@ def analyze_data(args) -> None:
     else:
         logger.error(f"Unknown analysis type: {args.analysis}")
         sys.exit(1)
+        return  # safety net so unit tests that mock sys.exit don't fall through
 
 
 def main() -> None:
@@ -416,6 +432,7 @@ Examples:
     if args.command is None:
         parser.print_help()
         sys.exit(1)
+        return  # safety net so unit tests that mock sys.exit don't fall through
 
     args.func(args)
 

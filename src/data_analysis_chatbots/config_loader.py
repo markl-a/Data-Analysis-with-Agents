@@ -38,12 +38,19 @@ class ConfigLoader:
         Get configuration value by key.
 
         Args:
-            key: Configuration key (supports nested keys with dot notation, e.g., 'paths.data_root')
+            key: Configuration key (supports nested keys with dot notation,
+                 e.g., 'paths.data_root'). An empty string returns the entire
+                 loaded config dict — convenient for "give me everything"
+                 callers without needing a separate accessor.
             default: Default value if key not found
 
         Returns:
             Configuration value or default
         """
+        # Empty key = whole config (matches the "give me everything" idiom).
+        if key == "":
+            return self.config
+
         keys = key.split('.')
         value = self.config
 
