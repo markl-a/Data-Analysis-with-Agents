@@ -45,6 +45,10 @@ setup(
         "plotly>=5.14.0,<6.0",
         "streamlit>=1.28.0,<2.0",
         "nltk>=3.8.0,<4.0",
+        # Required by DataLoader.load_excel + pandas.to_excel; without it
+        # CI fails with "ModuleNotFoundError: No module named 'openpyxl'"
+        # at the Excel-IO test sites.
+        "openpyxl>=3.1.0,<4.0",
         "pyyaml>=6.0.0,<7.0",
         "python-dotenv>=1.0.0,<2.0",
         "loguru>=0.7.0,<1.0",
