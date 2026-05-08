@@ -1,6 +1,8 @@
-# 📊 Data Analysis with Chatbots
+# Data Analysis with Agents
 
 > **一個利用AI聊天機器人(ChatGPT, Gemini, Claude)進行客戶分析與分群的完整框架**
+>
+> Phantom Mesh ecosystem analytics layer for customer segmentation today and agent-telemetry analysis next.
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -27,6 +29,16 @@ self-hostable multi-agent AI runtime.
 
 The same statistical machinery powers both: customer behaviour and AI agent
 behaviour are both "many discrete events with hidden structure" problems.
+
+---
+
+## Current Verification
+
+Latest `goal_plan` local check:
+
+- `python -m pytest tests -q -x`: blocked by missing dependencies/package setup.
+
+This README documents the intended analytics package and historical test path, but the repo still needs a scoped dependency install before it can be used as a locally verified Phantom Mesh demo artifact.
 
 ---
 
@@ -174,7 +186,7 @@ python -m data_analysis_chatbots.data_downloader --sample
 裝完依賴跟 `pip install -e .` 之後可直接跑測試：
 
 ```bash
-# 全部測試 (377 個 test，跑 ~10 秒)
+# 全部測試 (historically documented as ~377 tests; install dependencies first)
 pytest
 
 # 加 verbose
